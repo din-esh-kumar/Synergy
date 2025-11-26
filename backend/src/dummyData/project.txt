@@ -1,0 +1,127 @@
+http://localhost:8000/api/auth/login
+
+{
+  "email": "admin@synergy.com",
+  "password": "123456"
+}
+
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFlYWU2NmQwOWM3ZWE4NWI2NiIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTc2NDE0NjIyNywiZXhwIjoxNzY0NzUxMDI3fQ.TE7ONyT5bl8gmV_RYiisOsKLLVL3QgiJdIgTKQqBqpY",
+  "user": {
+    "id": "6926bbaeae66d09c7ea85b66",
+    "name": "System Admin",
+    "role": "ADMIN"
+  }
+}
+___________________________________________________________________
+
+http://localhost:8000/api/auth/login
+
+{
+  "email": "manager@synergy.com",
+  "password": "123456"
+}
+
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2YSIsInJvbGUiOiJNQU5BR0VSIiwiaWF0IjoxNzY0MTQ2MjUzLCJleHAiOjE3NjQ3NTEwNTN9.V6jO9r6T4EQPmc4QyP97fKkZAAKCe7uPlIrLvDrAYCk",
+  "user": {
+    "id": "6926bbafae66d09c7ea85b6a",
+    "name": "Mike Manager",
+    "role": "MANAGER"
+  }
+}
+
+___________________________________________________________________
+
+http://localhost:8000/api/projects
+
+{
+  "name": "Synergy Website Redesign",
+  "key": "WEB",
+  "description": "Redesigning the corporate website using React.",
+  "priority": "HIGH",
+  "status": "PLANNING",
+  "startDate": "2024-02-01",
+  "endDate": "2024-06-30",
+  "assignedManagerId": "<YOUR_MANAGER_ID>"
+}
+
+{
+  "name": "Synergy Website Redesign",
+  "key": "WEB",
+  "description": "Redesigning the corporate website using React.",
+  "priority": "HIGH",
+  "status": "PLANNING",
+  "startDate": "2024-02-01T00:00:00.000Z",
+  "endDate": "2024-06-30T00:00:00.000Z",
+  "assignedManagerId": "6926bbafae66d09c7ea85b6a",
+  "createdBy": "6926bbaeae66d09c7ea85b66",
+  "_id": "6926bcd0ae66d09c7ea85b74",
+  "createdAt": "2025-11-26T08:39:44.040Z",
+  "updatedAt": "2025-11-26T08:39:44.040Z",
+  "__v": 0
+}
+
+___________________________________________________________________
+
+GET http://localhost:8000/api/projects
+
+[
+  {
+    "_id": "6926c3d7ae66d09c7ea85b81",
+    "name": "Synergy Website Redesign 2",
+    "key": "WEB3",
+    "description": "Redesigning the corporate website using React.",
+    "priority": "HIGH",
+    "status": "PLANNING",
+    "startDate": "2024-02-01T00:00:00.000Z",
+    "endDate": "2024-06-30T00:00:00.000Z",
+    "assignedManagerId": {
+      "_id": "6926bbafae66d09c7ea85b6a",
+      "name": "Mike Manager",
+      "email": "manager@synergy.com"
+    },
+    "createdBy": {
+      "_id": "6926bbaeae66d09c7ea85b66",
+      "name": "System Admin"
+    },
+    "createdAt": "2025-11-26T09:09:43.411Z",
+    "updatedAt": "2025-11-26T09:09:43.411Z",
+    "__v": 0
+  },
+  {
+    "_id": "6926bcd0ae66d09c7ea85b74",
+    "name": "Synergy Website Redesign",
+    "key": "WEB",
+    "description": "Development phase has officially started.",
+    "priority": "HIGH",
+    "status": "ONGOING",
+    "startDate": "2024-02-01T00:00:00.000Z",
+    "endDate": "2024-06-30T00:00:00.000Z",
+    "assignedManagerId": {
+      "_id": "6926bbafae66d09c7ea85b6a",
+      "name": "Mike Manager",
+      "email": "manager@synergy.com"
+    },
+    "createdBy": {
+      "_id": "6926bbaeae66d09c7ea85b66",
+      "name": "System Admin"
+    },
+    "createdAt": "2025-11-26T08:39:44.040Z",
+    "updatedAt": "2025-11-26T08:44:24.927Z",
+    "__v": 0
+  }
+]
+
+=> same for manager, get my projects
+
+___________________________________________________________________
+
+PUT http://localhost:5000/api/projects/6926bcd0ae66d09c7ea85b74
+
+{
+  "status": "ONGOING",
+  "description": "Development phase has officially started."
+}
+
+___________________________________________________________________
