@@ -1,0 +1,219 @@
+POST 
+
+http://localhost:8000/api/weekly-reports
+
+manager - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2YSIsInJvbGUiOiJNQU5BR0VSIiwiaWF0IjoxNzY0MTQ2MjUzLCJleHAiOjE3NjQ3NTEwNTN9.V6jO9r6T4EQPmc4QyP97fKkZAAKCe7uPlIrLvDrAYCk
+
+body -
+
+{
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "weekStart": "2024-02-05",
+  "weekEnd": "2024-02-09",
+  "weekNumber": 6,
+  "summary": "Team made good progress on the backend authentication.",
+  "progressPercentage": 40,
+  "teamPerformance": "Excellent velocity.",
+  "issuesFaced": "Minor database connection issues.",
+  "nextWeekPlan": "Start frontend integration.",
+  "status": "DRAFT"
+}
+
+
+
+{
+  "managerId": "6926bbafae66d09c7ea85b6a",
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "weekStart": "2024-02-05T00:00:00.000Z",
+  "weekEnd": "2024-02-09T00:00:00.000Z",
+  "summary": "Team made good progress on the backend authentication.",
+  "progressPercentage": 40,
+  "teamPerformance": "Excellent velocity.",
+  "issuesFaced": "Minor database connection issues.",
+  "nextWeekPlan": "Start frontend integration.",
+  "status": "DRAFT",
+  "_id": "6926d67a9e98e7683fcee8c3",
+  "createdAt": "2025-11-26T10:29:14.655Z",
+  "updatedAt": "2025-11-26T10:29:14.655Z",
+  "__v": 0
+}
+
+
+___________________________________________________________________
+
+GET 
+
+http://localhost:8000/api/weekly-reports
+
+
+manager - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2YSIsInJvbGUiOiJNQU5BR0VSIiwiaWF0IjoxNzY0MTQ2MjUzLCJleHAiOjE3NjQ3NTEwNTN9.V6jO9r6T4EQPmc4QyP97fKkZAAKCe7uPlIrLvDrAYCk
+
+
+[
+  {
+    "_id": "6926d67a9e98e7683fcee8c3",
+    "managerId": {
+      "_id": "6926bbafae66d09c7ea85b6a",
+      "name": "Mike Manager",
+      "email": "manager@synergy.com"
+    },
+    "projectId": {
+      "_id": "6926c3d7ae66d09c7ea85b81",
+      "name": "Synergy Website Redesign 2",
+      "key": "WEB3"
+    },
+    "weekStart": "2024-02-05T00:00:00.000Z",
+    "weekEnd": "2024-02-09T00:00:00.000Z",
+    "summary": "Team made good progress on the backend authentication.",
+    "progressPercentage": 40,
+    "teamPerformance": "Excellent velocity.",
+    "issuesFaced": "Minor database connection issues.",
+    "nextWeekPlan": "Start frontend integration.",
+    "status": "DRAFT",
+    "createdAt": "2025-11-26T10:29:14.655Z",
+    "updatedAt": "2025-11-26T10:29:14.655Z",
+    "__v": 0
+  }
+]
+
+
+___________________________________________________________________
+
+PUT
+
+http://localhost:8000/api/weekly-reports/6926d67a9e98e7683fcee8c3
+
+
+manager - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2YSIsInJvbGUiOiJNQU5BR0VSIiwiaWF0IjoxNzY0MTQ2MjUzLCJleHAiOjE3NjQ3NTEwNTN9.V6jO9r6T4EQPmc4QyP97fKkZAAKCe7uPlIrLvDrAYCk
+
+
+{
+  "progressPercentage": 45,
+  "summary": "Updated summary: Backend auth complete."
+}
+
+
+{
+  "_id": "6926d67a9e98e7683fcee8c3",
+  "managerId": "6926bbafae66d09c7ea85b6a",
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "weekStart": "2024-02-05T00:00:00.000Z",
+  "weekEnd": "2024-02-09T00:00:00.000Z",
+  "summary": "Updated summary: Backend auth complete.",
+  "progressPercentage": 45,
+  "teamPerformance": "Excellent velocity.",
+  "issuesFaced": "Minor database connection issues.",
+  "nextWeekPlan": "Start frontend integration.",
+  "status": "DRAFT",
+  "createdAt": "2025-11-26T10:29:14.655Z",
+  "updatedAt": "2025-11-26T10:32:12.627Z",
+  "__v": 0
+}
+
+___________________________________________________________________
+
+PUT
+
+http://localhost:8000/api/weekly-reports/6926d67a9e98e7683fcee8c3
+
+
+manager - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2YSIsInJvbGUiOiJNQU5BR0VSIiwiaWF0IjoxNzY0MTQ2MjUzLCJleHAiOjE3NjQ3NTEwNTN9.V6jO9r6T4EQPmc4QyP97fKkZAAKCe7uPlIrLvDrAYCk
+
+{
+  "status": "SUBMITTED"
+}
+
+
+
+{
+  "_id": "6926d67a9e98e7683fcee8c3",
+  "managerId": "6926bbafae66d09c7ea85b6a",
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "weekStart": "2024-02-05T00:00:00.000Z",
+  "weekEnd": "2024-02-09T00:00:00.000Z",
+  "summary": "Updated summary: Backend auth complete.",
+  "progressPercentage": 45,
+  "teamPerformance": "Excellent velocity.",
+  "issuesFaced": "Minor database connection issues.",
+  "nextWeekPlan": "Start frontend integration.",
+  "status": "SUBMITTED",
+  "createdAt": "2025-11-26T10:29:14.655Z",
+  "updatedAt": "2025-11-26T10:33:32.586Z",
+  "__v": 0
+}
+
+___________________________________________________________________
+
+PUT
+
+http://localhost:8000/api/weekly-reports/6926d67a9e98e7683fcee8c3
+
+
+manager - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2YSIsInJvbGUiOiJNQU5BR0VSIiwiaWF0IjoxNzY0MTQ2MjUzLCJleHAiOjE3NjQ3NTEwNTN9.V6jO9r6T4EQPmc4QyP97fKkZAAKCe7uPlIrLvDrAYCk
+
+{
+  "status": "SUBMITTED"
+}
+
+
+{
+  "msg": "Cannot edit a submitted report."
+}
+
+___________________________________________________________________
+Admin & Employee Access
+___________________________________________________________________
+
+GET
+
+http://localhost:8000/api/weekly-reports/6926d67a9e98e7683fcee8c3
+
+Admin - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFlYWU2NmQwOWM3ZWE4NWI2NiIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTc2NDE0NjIyNywiZXhwIjoxNzY0NzUxMDI3fQ.TE7ONyT5bl8gmV_RYiisOsKLLVL3QgiJdIgTKQqBqpY
+
+
+{
+  "_id": "6926d67a9e98e7683fcee8c3",
+  "managerId": {
+    "_id": "6926bbafae66d09c7ea85b6a",
+    "name": "Mike Manager"
+  },
+  "projectId": {
+    "_id": "6926c3d7ae66d09c7ea85b81",
+    "name": "Synergy Website Redesign 2"
+  },
+  "weekStart": "2024-02-05T00:00:00.000Z",
+  "weekEnd": "2024-02-09T00:00:00.000Z",
+  "summary": "Updated summary: Backend auth complete.",
+  "progressPercentage": 45,
+  "teamPerformance": "Excellent velocity.",
+  "issuesFaced": "Minor database connection issues.",
+  "nextWeekPlan": "Start frontend integration.",
+  "status": "SUBMITTED",
+  "createdAt": "2025-11-26T10:29:14.655Z",
+  "updatedAt": "2025-11-26T10:34:24.908Z",
+  "__v": 0
+}
+
+___________________________________________________________________
+
+POST
+
+http://localhost:8000/api/weekly-reports/
+
+employee - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2ZSIsInJvbGUiOiJFTVBMT1lFRSIsImlhdCI6MTc2NDE1MDg2MCwiZXhwIjoxNzY0NzU1NjYwfQ.yaXI9d7dASMG8ueK39Bo_dgXWICcYEnGa3ExbbxiiME
+
+{
+  "msg": "Access denied. This action requires one of the following roles: MANAGER"
+}
+
+___________________________________________________________________
+
+GET
+
+http://localhost:8000/api/weekly-reports/
+
+employee - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2ZSIsInJvbGUiOiJFTVBMT1lFRSIsImlhdCI6MTc2NDE1MDg2MCwiZXhwIjoxNzY0NzU1NjYwfQ.yaXI9d7dASMG8ueK39Bo_dgXWICcYEnGa3ExbbxiiME
+
+{
+  "msg": "Access denied. This action requires one of the following roles: MANAGER"
+}
