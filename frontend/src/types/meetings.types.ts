@@ -4,21 +4,20 @@ export interface User {
   email: string;
 }
 
+export type MeetingStatus = 'scheduled' | 'ongoing' | 'completed' | 'cancelled' | 'pending';
+
 export interface Meeting {
-  _id: string;
+  _id?: string;
   title: string;
-  description?: string;
+  description: string;
   startTime: string;
   endTime: string;
-  location?: string;
-  meetingLink?: string;
-  organizer: User;
-  attendees: User[];
-  status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
-  reminder?: number;
-  createdAt: string;
-  updatedAt: string;
-  duration?: number;
+  attendees: User[]; // Full user objects
+  organizer?: string;
+  status?: MeetingStatus;
+  createdAt?: string;
+  updatedAt?: string;
+  joinLink?: string; // Added this so your component can use it
 }
 
 export interface CreateMeetingPayload {
@@ -27,8 +26,8 @@ export interface CreateMeetingPayload {
   startTime: string;
   endTime: string;
   location?: string;
-  meetingLink?: string;
-  attendees: string[];
+  meetingLink?: string; // optional meeting link
+  attendees: string[]; // just user IDs for creation
   reminder?: number;
 }
 
