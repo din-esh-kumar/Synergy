@@ -1,36 +1,15 @@
-import mongoose from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
 
-const ProjectSchema = new mongoose.Schema({
+export interface IProject extends Document {
+  name: string;
+  description: string;
+  createdAt: Date;
+}
+
+const ProjectSchema = new Schema<IProject>({
   name: { type: String, required: true },
-
-  priority: {
-    type: String,
-    enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
-    default: "MEDIUM"
-  },
-
-  status: {
-    type: String,
-    enum: ["PLANNING", "ONGOING", "ON HOLD", "COMPLETED", "CANCELLED"],
-    default: "PLANNING"
-  },
-
   description: { type: String },
-
-  assignedManagerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true
-  },
-
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true
-  },
-
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model("Project", ProjectSchema)
+export const Project = mongoose.model<IProject>("Project", ProjectSchema);

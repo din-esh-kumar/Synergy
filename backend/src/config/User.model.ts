@@ -1,26 +1,46 @@
-import mongoose from "mongoose";
+// backend/src/config/User.model.ts
+import mongoose, { Schema, Document, Model } from "mongoose";
 
-const UserSchema = new mongoose.Schema({
-  name: { type: String, required: true },
+// User interface
+export interface IUser extends Document {
+  _id: mongoose.Types.ObjectId;
+  id?: string;
+  name: string;
+  email: string;
+  password: string;
+  role: "ADMIN" | "MANAGER" | "EMPLOYEE";
+  managerId?: mongoose.Types.ObjectId | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-  email: { type: String, required: true, unique: true },
+// User schema
+const UserSchema: Schema<IUser> = new Schema(
+  {
+    name: { type: String, required: true },
 
-  password: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
 
-  role: {
-    type: String,
-    enum: ["ADMIN", "MANAGER", "EMPLOYEE"],
-    default: "EMPLOYEE"
+    password: { type: String, required: true },
+
+    role: {
+      type: String,
+      enum: ["ADMIN", "MANAGER", "EMPLOYEE"],
+      default: "EMPLOYEE",
+    },
+
+    managerId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
+  {
+    timestamps: true, // automatically adds createdAt & updatedAt
+  }
+);
 
-  managerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    default: null // Only for employees
-  },
+// ✅ Prevent OverwriteModelError
+const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
 
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-module.exports = mongoose.model("User", UserSchema);
+export default User;
