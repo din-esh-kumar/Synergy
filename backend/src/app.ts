@@ -8,7 +8,8 @@ import userRoutes from './routes/user.routes';
 import authRoutes from './routes/auth.routes';
 import projectRoutes from './routes/project.routes';
 import dailyUpdateRoutes from './routes/daliyupdate.routes';
-import weeklyReportRoutes from './routes/weeklyupdate.routes'; // Import the new route
+import weeklyReportRoutes from './routes/weeklyupdate.routes';
+import taskRoutes from './routes/task.routes'; // Import the new route
 
 dotenv.config();
 
@@ -34,7 +35,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/daily-updates', dailyUpdateRoutes);
-app.use('/api/weekly-reports', weeklyReportRoutes); // Register the new route
+app.use('/api/weekly-reports', weeklyReportRoutes);
+app.use('/api/tasks', taskRoutes); // Register the new route
 
 // Health check route
 app.get('/api/health', (req, res) => {

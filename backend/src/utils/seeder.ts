@@ -29,6 +29,19 @@ export const seedDatabase = async () => {
       console.log('🌱 Seeded: Manager User (manager@synergy.com / 123456)');
     }
 
+    const manager2Exists = await User.findOne({ email: 'manager2@synergy.com' });
+    if (!manager2Exists) {
+      const hashedPassword = await bcrypt.hash('123456', 10);
+      await User.create({
+        name: 'Mike Manager',
+        email: 'manager2@synergy.com',
+        password: hashedPassword,
+        role: 'MANAGER'
+      });
+      console.log('🌱 Seeded: Manager User (manager2@synergy.com / 123456)');
+    }
+
+
     // 3. Seed Employee (Optional)
     const employeeExists = await User.findOne({ email: 'employee@synergy.com' });
     if (!employeeExists) {

@@ -1,0 +1,196 @@
+POST
+
+http://localhost:8000/api/tasks
+
+admin - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFlYWU2NmQwOWM3ZWE4NWI2NiIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTc2NDE0NjIyNywiZXhwIjoxNzY0NzUxMDI3fQ.TE7ONyT5bl8gmV_RYiisOsKLLVL3QgiJdIgTKQqBqpY
+
+body - {
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "title": "High Level Architecture Plan",
+  "description": "Define the system modules.",
+  "priority": "CRITICAL",
+  "status": "TODO",
+  "assigneeId": "6926bbafae66d09c7ea85b6a"
+}
+
+res - {
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "taskKey": "WEB3-1",
+  "title": "High Level Architecture Plan",
+  "description": "Define the system modules.",
+  "priority": "CRITICAL",
+  "status": "TODO",
+  "assigneeId": "6926bbafae66d09c7ea85b6a",
+  "reporterId": "6926bbaeae66d09c7ea85b66",
+  "labels": [],
+  "actualHours": 0,
+  "_id": "692740ef9c19338c903b0435",
+  "createdAt": "2025-11-26T18:03:27.945Z",
+  "updatedAt": "2025-11-26T18:03:27.945Z",
+  "__v": 0
+}
+
+___________________________________________________________________
+
+POST
+
+http://localhost:8000/api/tasks
+
+admin - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFlYWU2NmQwOWM3ZWE4NWI2NiIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTc2NDE0NjIyNywiZXhwIjoxNzY0NzUxMDI3fQ.TE7ONyT5bl8gmV_RYiisOsKLLVL3QgiJdIgTKQqBqpY
+
+body - {
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "title": "High Level Architecture Plan",
+  "description": "Define the system modules.",
+  "priority": "CRITICAL",
+  "status": "TODO",
+  "assigneeId": "6926bbafae66d09c7ea85b6a"
+}
+
+res - 
+
+{
+  "msg": "Admins can only assign tasks to Managers."
+}
+
+___________________________________________________________________
+
+POST
+
+http://localhost:8000/api/tasks
+
+manager - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2YSIsInJvbGUiOiJNQU5BR0VSIiwiaWF0IjoxNzY0MTQ2MjUzLCJleHAiOjE3NjQ3NTEwNTN9.V6jO9r6T4EQPmc4QyP97fKkZAAKCe7uPlIrLvDrAYCk
+
+body - {
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "title": "Build Login API",
+  "priority": "HIGH",
+  "assigneeId": "6926bbafae66d09c7ea85b6e"
+}
+
+res - {
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "taskKey": "WEB3-2",
+  "title": "Build Login API",
+  "description": "",
+  "priority": "HIGH",
+  "status": "TODO",
+  "assigneeId": "6926bbafae66d09c7ea85b6e",
+  "reporterId": "6926bbafae66d09c7ea85b6a",
+  "labels": [],
+  "actualHours": 0,
+  "_id": "692741be9c19338c903b043d",
+  "createdAt": "2025-11-26T18:06:54.893Z",
+  "updatedAt": "2025-11-26T18:06:54.893Z",
+  "__v": 0
+}
+
+___________________________________________________________________
+
+
+POST
+
+http://localhost:8000/api/tasks
+
+employee
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2ZSIsInJvbGUiOiJFTVBMT1lFRSIsImlhdCI6MTc2NDE1MDg2MCwiZXhwIjoxNzY0NzU1NjYwfQ.yaXI9d7dASMG8ueK39Bo_dgXWICcYEnGa3ExbbxiiME
+
+{
+  "msg": "Access denied. This action requires one of the following roles: ADMIN, MANAGER"
+}
+___________________________________________________________________
+
+GET
+
+http://localhost:8000/api/tasks
+
+employee
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2ZSIsInJvbGUiOiJFTVBMT1lFRSIsImlhdCI6MTc2NDE1MDg2MCwiZXhwIjoxNzY0NzU1NjYwfQ.yaXI9d7dASMG8ueK39Bo_dgXWICcYEnGa3ExbbxiiME
+
+
+[
+  {
+    "_id": "692741be9c19338c903b043d",
+    "projectId": {
+      "_id": "6926c3d7ae66d09c7ea85b81",
+      "name": "Synergy Website Redesign 2",
+      "key": "WEB3"
+    },
+    "taskKey": "WEB3-2",
+    "title": "Build Login API",
+    "description": "",
+    "priority": "HIGH",
+    "status": "TODO",
+    "assigneeId": {
+      "_id": "6926bbafae66d09c7ea85b6e",
+      "name": "Emma Employee",
+      "email": "employee@synergy.com"
+    },
+    "reporterId": {
+      "_id": "6926bbafae66d09c7ea85b6a",
+      "name": "Mike Manager",
+      "email": "manager@synergy.com"
+    },
+    "labels": [],
+    "actualHours": 0,
+    "createdAt": "2025-11-26T18:06:54.893Z",
+    "updatedAt": "2025-11-26T18:06:54.893Z",
+    "__v": 0
+  }
+]
+
+
+___________________________________________________________________
+
+PUT
+
+http://localhost:8000/api/tasks/692741be9c19338c903b043d
+
+employee - 
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2ZSIsInJvbGUiOiJFTVBMT1lFRSIsImlhdCI6MTc2NDE1MDg2MCwiZXhwIjoxNzY0NzU1NjYwfQ.yaXI9d7dASMG8ueK39Bo_dgXWICcYEnGa3ExbbxiiME
+
+{
+  "status": "IN_PROGRESS"
+}
+
+
+{
+  "_id": "692741be9c19338c903b043d",
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "taskKey": "WEB3-2",
+  "title": "Build Login API",
+  "description": "",
+  "priority": "HIGH",
+  "status": "IN_PROGRESS",
+  "assigneeId": "6926bbafae66d09c7ea85b6e",
+  "reporterId": "6926bbafae66d09c7ea85b6a",
+  "labels": [],
+  "actualHours": 0,
+  "createdAt": "2025-11-26T18:06:54.893Z",
+  "updatedAt": "2025-11-26T18:11:38.256Z",
+  "__v": 0
+}
+
+___________________________________________________________________
+
+POST
+
+http://localhost:8000/api/tasks
+
+manager - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2YSIsInJvbGUiOiJNQU5BR0VSIiwiaWF0IjoxNzY0MTQ2MjUzLCJleHAiOjE3NjQ3NTEwNTN9.V6jO9r6T4EQPmc4QyP97fKkZAAKCe7uPlIrLvDrAYCk
+
+{
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "title": "Peer Delegation",
+  "assigneeId": "6927436069a31b5bd312cb62"
+}
+
+{
+  "msg": "Managers can only assign tasks to Employees."
+}
+
+___________________________________________________________________
+

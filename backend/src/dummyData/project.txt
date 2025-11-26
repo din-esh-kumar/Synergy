@@ -32,6 +32,29 @@ http://localhost:8000/api/auth/login
 }
 ___________________________________________________________________
 
+POST 
+
+http://localhost:8000/api/auth/login
+
+{
+  "email": "manager2@synergy.com",
+  "password": "123456"
+}
+
+
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Mjc0MzYwNjlhMzFiNWJkMzEyY2I2MiIsInJvbGUiOiJNQU5BR0VSIiwiaWF0IjoxNzY0MTgwOTE3LCJleHAiOjE3NjQ3ODU3MTd9.-iZJzrTkagYZ2t02forRS2TXjBMGdoElqS6oZmWMsWY",
+  "user": {
+    "id": "6927436069a31b5bd312cb62",
+    "name": "Mike Manager",
+    "role": "MANAGER"
+  }
+}
+
+
+___________________________________________________________________
+
+
 http://localhost:8000/api/auth/login
 
 {"email": "employee@synergy.com", "password": "123456"}
@@ -138,4 +161,5 @@ PUT http://localhost:5000/api/projects/6926bcd0ae66d09c7ea85b74
 }
 
 ___________________________________________________________________
+
 
