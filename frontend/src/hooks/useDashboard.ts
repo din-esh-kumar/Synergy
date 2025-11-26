@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { dashboardService } from '../services/dashboard.service';
-import { DashboardData } from '../types/dashboard.types';
+import { DashboardStats } from "../services/dashboard.service";
 
 export const useDashboard = () => {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
     setError(null);

@@ -2,46 +2,85 @@ import api from './api';
 import { Meeting, CreateMeetingPayload, MeetingFilters } from '../types/meetings.types';
 
 export const meetingsService = {
-  // Create a new meeting
+  getMeetings: async (filters?: MeetingFilters): Promise<Meeting[]> => {
+    try {
+      const response = await api.get('/meetings', { params: filters });
+      return response.data?.meetings as Meeting[];
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+      return [];
+    }
+  },
+
+  getMeetingById: async (id: string): Promise<Meeting | null> => {
+    try {
+      const response = await api.get(`/meetings/${id}`);
+      return response.data?.meeting as Meeting;
+    } catch (error) {
+      console.error('Error fetching meeting:', error);
+      return null;
+    }
+  },
+
   createMeeting: async (data: CreateMeetingPayload): Promise<Meeting> => {
     const response = await api.post('/meetings', data);
-    return response.data.meeting;
+    return response.data?.meeting as Meeting;
   },
 
-  // Get all meetings with filters
-  getMeetings: async (filters?: MeetingFilters): Promise<Meeting[]> => {
-    const response = await api.get('/meetings', { params: filters });
-    return response.data.meetings;
-  },
-
-  // Get single meeting
-  getMeetingById: async (id: string): Promise<Meeting> => {
-    const response = await api.get(`/meetings/${id}`);
-    return response.data.meeting;
-  },
-
-  // Update meeting
   updateMeeting: async (id: string, data: Partial<CreateMeetingPayload>): Promise<Meeting> => {
     const response = await api.put(`/meetings/${id}`, data);
-    return response.data.meeting;
+    return response.data?.meeting as Meeting;
   },
 
-  // Delete meeting
-  deleteMeeting: async (id: string): Promise<void> => {
-    await api.delete(`/meetings/${id}`);
+  deleteMeeting: async (id: string): Promise<boolean> => {
+    try {
+      await api.delete(`/meetings/${id}`);
+      return true;
+    } catch (error) {
+      console.error('Error deleting meeting:', error);
+      return false;
+    }
   },
 
-  // Get upcoming meetings
-  getUpcomingMeetings: async (limit?: number): Promise<Meeting[]> => {
-    const response = await api.get('/meetings/upcoming', { params: { limit } });
-    return response.data.meetings;
+  joinMeeting: async (id: string): Promise<boolean> => {
+    try {
+      const response = await api.post(`/meetings/${id}/join`);
+      return response.status === 200;
+    } catch (error) {
+      console.error('Error joining meeting:', error);
+      return false;
+    }
   },
 
-  // Get monthly meetings for calendar
+  leaveMeeting: async (id: string): Promise<boolean> => {
+    try {
+      const response = await api.post(`/meetings/${id}/leave`);
+      return response.status === 200;
+    } catch (error) {
+      console.error('Error leaving meeting:', error);
+      return false;
+    }
+  },
+
+  getMeetingsByStatus: async (status: string): Promise<Meeting[]> => {
+    try {
+      const response = await api.get('/meetings', { params: { status } });
+      return response.data?.meetings as Meeting[];
+    } catch (error) {
+      console.error('Error fetching meetings by status:', error);
+      return [];
+    }
+  },
+
   getMonthlyMeetings: async (year: number, month: number): Promise<Meeting[]> => {
-    const response = await api.get('/meetings/monthly', { 
-      params: { year, month } 
-    });
-    return response.data.meetings;
+    try {
+      const response = await api.get(`/meetings/monthly`, { params: { year, month } });
+      return response.data?.meetings as Meeting[];
+    } catch (error) {
+      console.error('Error fetching monthly meetings:', error);
+      return [];
+    }
   },
 };
+
+export default meetingsService;

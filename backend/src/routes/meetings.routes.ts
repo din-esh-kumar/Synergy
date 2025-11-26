@@ -8,12 +8,12 @@ import {
   getUpcomingMeetings,
   getMonthlyMeetings,
 } from '../controllers/meetings.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticateJWT  } from '../middleware/auth.middleware';
 
 const router = express.Router();
 
 // All routes require authentication
-router.use(authenticate);
+router.use(authenticateJWT);
 
 // Meeting CRUD operations
 router.post('/', createMeeting);

@@ -44,11 +44,14 @@ export const getUserById = async (req: Request, res: Response) => {
   }
 };
 
-// Update user
+// Update user (role is NOT editable here)
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    let updates = { ...req.body };
+    // Prevent role from being updated here
+    if ('role' in updates) delete (updates as any).role;
+
     const user = await User.findByIdAndUpdate(id, updates, {
       new: true,
       runValidators: true,
@@ -69,6 +72,36 @@ export const updateUser = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: "Error updating user",
+      error: error.message
+    });
+  }
+};
+
+// Admin-only: Update user role
+export const updateUserRole = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { role } = req.body;
+  const allowedRoles = ["ADMIN", "MANAGER", "EMPLOYEE"];
+  if (!allowedRoles.includes(role)) {
+    return res.status(400).json({ success: false, message: "Invalid role" });
+  }
+  try {
+    const user = await User.findByIdAndUpdate(id, { role }, { new: true, runValidators: true, select: "_id name email role" });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+    res.json({
+      success: true,
+      message: `Role updated to ${user.role}`,
+      user
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: "Error updating user role",
       error: error.message
     });
   }

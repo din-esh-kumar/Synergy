@@ -1,11 +1,11 @@
 import express from 'express';
 import { getDashboardStats, getActivityFeed } from '../controllers/dashboard.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticateJWT  } from '../middleware/auth.middleware';
 
 const router = express.Router();
 
 // All routes require authentication
-router.use(authenticate);
+router.use(authenticateJWT );
 
 router.get('/stats', getDashboardStats);
 router.get('/activity', getActivityFeed);
