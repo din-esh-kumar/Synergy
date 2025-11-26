@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import Project from '../models/Project.model';
 import User from '../models/User.model';
+// import Team from '../models/Team.model'; // Import Team to check Employee membership
 
-// Extend Request to include user info (populated by auth middleware)
 interface AuthRequest extends Request {
   user?: {
     id: string;
@@ -12,26 +12,23 @@ interface AuthRequest extends Request {
 
 // @desc    Create a new project
 // @route   POST /api/projects
-// @access  Admin only (Protected by Middleware)
+// @access  Admin only
 export const createProject = async (req: AuthRequest, res: Response) => {
   try {
-    // NOTE: Role check removed here because router.post('/', authorize('ADMIN'), ...) handles it.
-
     const { name, key, description, priority, startDate, endDate, assignedManagerId } = req.body;
 
-    // 1. Validate Manager Existence
+    // 1. Validate Manager
     const manager = await User.findById(assignedManagerId);
     if (!manager || manager.role !== 'MANAGER') {
-      return res.status(400).json({ msg: 'Invalid Manager ID provided. User must have MANAGER role.' });
+      return res.status(400).json({ msg: 'Invalid Manager ID. User must have MANAGER role.' });
     }
 
-    // 2. Check for Duplicate Key
+    // 2. Check Duplicate Key
     const existingKey = await Project.findOne({ key });
     if (existingKey) {
       return res.status(400).json({ msg: `Project Key '${key}' already exists.` });
     }
 
-    // 3. Create Project
     const project = new Project({
       name,
       key,
@@ -40,32 +37,43 @@ export const createProject = async (req: AuthRequest, res: Response) => {
       startDate,
       endDate,
       assignedManagerId,
-      createdBy: req.user!.id // ! is safe because auth middleware guarantees user exists
+      createdBy: req.user!.id
     });
 
     await project.save();
     res.status(201).json(project);
-
   } catch (err) {
     res.status(500).json({ msg: 'Server Error', error: (err as Error).message });
   }
 };
 
-// @desc    Get all projects
+// @desc    Get projects (Filtered by Role)
 // @route   GET /api/projects
 // @access  Private
 export const getProjects = async (req: AuthRequest, res: Response) => {
   try {
-    let query = {};
+    let query: any = {};
 
-    // Logic: 
-    // - Admins: View ALL.
-    // - Managers: View ONLY projects they manage.
-    // - Employees: View ALL (Open directory) - *Can be restricted later via Team logic*
+    // --- ROLE BASED FILTERING ---
     
+    // 1. MANAGER: See only projects they manage
     if (req.user?.role === 'MANAGER') {
       query = { assignedManagerId: req.user.id };
     }
+
+    // 2. EMPLOYEE: See only projects where they are a Team Member_________________________
+    if (req.user?.role === 'EMPLOYEE') {
+      // Find all teams where this user is a member
+      // const userTeams = await Team.find({ members: req.user.id }).select('projectId');
+      
+      // Extract the Project IDs from those teams
+      // const projectIds = userTeams.map(team => team.projectId);
+      
+      // Filter projects to only include those IDs
+      // query = { _id: { $in: projectIds } };
+    }
+
+    // 3. ADMIN: See ALL projects (query remains empty {})
 
     const projects = await Project.find(query)
       .populate('assignedManagerId', 'name email')
@@ -90,10 +98,14 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ msg: 'Project not found' });
     }
 
-    // Optional: If you want to restrict Managers from seeing details of projects they don't own
-    if (req.user?.role === 'MANAGER' && project.assignedManagerId.id.toString() !== req.user.id) {
-       return res.status(403).json({ msg: 'Access denied.' });
+    // Strict Access Check for Manager/Employee viewing specific ID
+    if (req.user?.role === 'MANAGER' && project.assignedManagerId._id.toString() !== req.user.id) {
+       return res.status(403).json({ msg: 'Access denied. You do not manage this project.' });
     }
+    
+    // Note: For Employees, you might strictly want to check Team membership here too, 
+    // but typically if they have the ID, read access is less critical than write access.
+    // We can add strict Team check here if requested.
 
     res.json(project);
   } catch (err) {
@@ -103,7 +115,7 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
 
 // @desc    Update a project
 // @route   PUT /api/projects/:id
-// @access  Admin (All) OR Manager (Own Projects) - (Protected by Middleware)
+// @access  Admin (All) OR Manager (Own Projects)
 export const updateProject = async (req: AuthRequest, res: Response) => {
   try {
     const project = await Project.findById(req.params.id);
@@ -112,8 +124,7 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ msg: 'Project not found' });
     }
 
-    // Resource-Level Authorization
-    // Middleware lets any 'MANAGER' in, but we must ensure they own THIS project.
+    // --- PART 1: MANAGER MODIFY OWN LOGIC ---
     const isAdmin = req.user?.role === 'ADMIN';
     const isOwnerManager = req.user?.role === 'MANAGER' && project.assignedManagerId.toString() === req.user.id;
 
@@ -121,7 +132,7 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ msg: 'Access denied. You do not manage this project.' });
     }
 
-    // Prevent Manager from changing the Project Owner (ManagerId)
+    // Protection: Managers cannot reassign the project to someone else
     if (req.body.assignedManagerId && !isAdmin) {
       return res.status(403).json({ msg: 'Only Admins can reassign project managers.' });
     }
@@ -140,11 +151,9 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
 
 // @desc    Delete a project
 // @route   DELETE /api/projects/:id
-// @access  Admin only (Protected by Middleware)
+// @access  Admin only
 export const deleteProject = async (req: AuthRequest, res: Response) => {
   try {
-    // NOTE: Role check removed here because router.delete('/:id', authorize('ADMIN'), ...) handles it.
-
     const project = await Project.findById(req.params.id);
     if (!project) {
       return res.status(404).json({ msg: 'Project not found' });

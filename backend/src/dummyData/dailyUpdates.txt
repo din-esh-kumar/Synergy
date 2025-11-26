@@ -1,0 +1,124 @@
+POST
+
+http://localhost:8000/api/daily-updates
+
+{
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "workDone": "Completed the login API integration.",
+  "blockers": "Waiting for frontend designs.",
+  "tomorrowPlan": "Start working on the dashboard layout."
+}
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2ZSIsInJvbGUiOiJFTVBMT1lFRSIsImlhdCI6MTc2NDE1MDg2MCwiZXhwIjoxNzY0NzU1NjYwfQ.yaXI9d7dASMG8ueK39Bo_dgXWICcYEnGa3ExbbxiiME
+
+{
+  "employeeId": "6926bbafae66d09c7ea85b6e",
+  "managerId": "6926bbafae66d09c7ea85b6a",
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "date": "2025-11-25T18:30:00.000Z",
+  "workDone": "Completed the login API integration.",
+  "blockers": "Waiting for frontend designs.",
+  "tomorrowPlan": "Start working on the dashboard layout.",
+  "status": "PENDING",
+  "_id": "6926cef7124c9633aa485d1f",
+  "createdAt": "2025-11-26T09:57:11.727Z",
+  "updatedAt": "2025-11-26T09:57:11.727Z",
+  "__v": 0
+}
+
+___________________________________________________________________
+
+GET
+
+http://localhost:8000/api/daily-updates
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2YSIsInJvbGUiOiJNQU5BR0VSIiwiaWF0IjoxNzY0MTQ2MjUzLCJleHAiOjE3NjQ3NTEwNTN9.V6jO9r6T4EQPmc4QyP97fKkZAAKCe7uPlIrLvDrAYCk
+
+
+  {
+    "_id": "6926cef7124c9633aa485d1f",
+    "employeeId": {
+      "_id": "6926bbafae66d09c7ea85b6e",
+      "name": "Emma Employee",
+      "email": "employee@synergy.com"
+    },
+    "managerId": "6926bbafae66d09c7ea85b6a",
+    "projectId": {
+      "_id": "6926c3d7ae66d09c7ea85b81",
+      "name": "Synergy Website Redesign 2",
+      "key": "WEB3"
+    },
+    "date": "2025-11-25T18:30:00.000Z",
+    "workDone": "Completed the login API integration.",
+    "blockers": "Waiting for frontend designs.",
+    "tomorrowPlan": "Start working on the dashboard layout.",
+    "status": "PENDING",
+    "createdAt": "2025-11-26T09:57:11.727Z",
+    "updatedAt": "2025-11-26T09:57:11.727Z",
+    "__v": 0
+  }
+
+
+___________________________________________________________________
+
+GET
+
+http://localhost:8000/api/daily-updates
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2ZSIsInJvbGUiOiJFTVBMT1lFRSIsImlhdCI6MTc2NDE1MDg2MCwiZXhwIjoxNzY0NzU1NjYwfQ.yaXI9d7dASMG8ueK39Bo_dgXWICcYEnGa3ExbbxiiME
+
+
+[
+  {
+    "_id": "6926cef7124c9633aa485d1f",
+    "employeeId": {
+      "_id": "6926bbafae66d09c7ea85b6e",
+      "name": "Emma Employee",
+      "email": "employee@synergy.com"
+    },
+    "managerId": "6926bbafae66d09c7ea85b6a",
+    "projectId": {
+      "_id": "6926c3d7ae66d09c7ea85b81",
+      "name": "Synergy Website Redesign 2",
+      "key": "WEB3"
+    },
+    "date": "2025-11-25T18:30:00.000Z",
+    "workDone": "Completed the login API integration.",
+    "blockers": "Waiting for frontend designs.",
+    "tomorrowPlan": "Start working on the dashboard layout.",
+    "status": "PENDING",
+    "createdAt": "2025-11-26T09:57:11.727Z",
+    "updatedAt": "2025-11-26T09:57:11.727Z",
+    "__v": 0
+  }
+]
+
+
+___________________________________________________________________
+
+PATCH
+
+http://localhost:8000/api/daily-updates/6926cef7124c9633aa485d1f/review
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjZiYmFmYWU2NmQwOWM3ZWE4NWI2YSIsInJvbGUiOiJNQU5BR0VSIiwiaWF0IjoxNzY0MTQ2MjUzLCJleHAiOjE3NjQ3NTEwNTN9.V6jO9r6T4EQPmc4QyP97fKkZAAKCe7uPlIrLvDrAYCk
+
+
+{
+  "_id": "6926cef7124c9633aa485d1f",
+  "employeeId": "6926bbafae66d09c7ea85b6e",
+  "managerId": "6926bbafae66d09c7ea85b6a",
+  "projectId": "6926c3d7ae66d09c7ea85b81",
+  "date": "2025-11-25T18:30:00.000Z",
+  "workDone": "Completed the login API integration.",
+  "blockers": "Waiting for frontend designs.",
+  "tomorrowPlan": "Start working on the dashboard layout.",
+  "status": "REVIEWED",
+  "createdAt": "2025-11-26T09:57:11.727Z",
+  "updatedAt": "2025-11-26T10:04:00.090Z",
+  "__v": 0,
+  "managerComment": "Great progress. Design team has been notified about the blockers."
+}
+
+
+
+___________________________________________________________________

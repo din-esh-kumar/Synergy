@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import userRoutes from './routes/user.routes';
 import authRoutes from './routes/auth.routes';
 import projectRoutes from './routes/project.routes';
+import dailyUpdateRoutes from './routes/daliyupdate.routes'; // Import the new route
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ mongoose
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/daily-updates', dailyUpdateRoutes); // Register the new route
 
 // Health check route
 app.get('/api/health', (req, res) => {
