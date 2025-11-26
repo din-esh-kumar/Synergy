@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Meeting from '../config/Meeting.model';
-import { User } from "../config/User.model";
+import User from "../config/User.model";
+
 
 // Create a new meeting
 export const createMeeting = async (req: Request, res: Response) => {

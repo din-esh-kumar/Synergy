@@ -3,6 +3,7 @@ dist/
 .vscode/
 npm-debug.log
 .DS_Store
-*.log
-coverage/
 package-lock.json
+.env
+coverage/
+*.log
