@@ -1,18 +1,14 @@
-import { Router } from "express";
-import { 
-  getAllUsers, 
-  getUserById, 
-  updateUser, 
-  deleteUser 
-} from "../controllers/user.controller";
+// src/routes/user.routes.ts
+import express from "express";
+import { getAllUsers, getUserById, updateUser, deleteUser } from "../controllers/user.controller";
+import { authenticate } from "../middleware/auth.middleware";
+const router = express.Router();
 
-import authenticate from "../middleware/auth.middleware";
+router.use(authenticate);
 
-const router = Router();
-
-router.get("/", authenticate, getAllUsers);
-router.get("/:id", authenticate, getUserById);
-router.put("/:id", authenticate, updateUser);
-router.delete("/:id", authenticate, deleteUser);
+router.get("/", getAllUsers);
+router.get("/:id", getUserById);
+router.put("/:id", updateUser);
+router.delete("/:id", deleteUser);
 
 export default router;

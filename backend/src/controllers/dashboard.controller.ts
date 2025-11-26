@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { User } from "../config/User.model";
+import User from '../config/User.model';
 import { Project } from "../config/Project.model";
 import { Task } from "../config/Task.model";
 import Meeting from '../config/Meeting.model';
