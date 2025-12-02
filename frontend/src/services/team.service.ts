@@ -1,71 +1,35 @@
 // src/services/team.service.ts
-import api from './api';
-import { CreateTeamPayload, ITeam } from '../types/team.types';
+import api from "./api";
+import { Team, CreateTeamPayload } from "../types/team.types";
 
-export const teamService = {
+export const TeamService = {
+  //create Teams
+ createTeam: async (data: CreateTeamPayload): Promise<Team> => {
+    const response = await api.post("/teams", data);  // calls /api/teams
+    const res = response.data;
+    return (res?.team || res?.data) as Team;
+  },
+
   // Get all teams
-  async getTeams(): Promise<ITeam[]> {
-    try {
-      const response = await api.get('/teams');
-      const data = response.data;
-      if (Array.isArray(data?.teams)) return data.teams as ITeam[];
-      if (Array.isArray(data)) return data as ITeam[];
-      return [];
-    } catch (error: any) {
-      console.error('Error fetching teams:', error);
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Get single team
-  async getTeamById(id: string): Promise<ITeam | null> {
-    try {
-      const response = await api.get(`/teams/${id}`);
-      const data = response.data;
-      return (data?.team || data || null) as ITeam | null;
-    } catch (error: any) {
-      console.error('Error fetching team:', error);
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Create team
-  async createTeam(payload: CreateTeamPayload): Promise<ITeam> {
-    try {
-      const response = await api.post('/teams', payload);
-      const data = response.data;
-      return (data?.team || data) as ITeam;
-    } catch (error: any) {
-      console.error('Error creating team:', error);
-      throw error.response?.data || error.message;
-    }
+  getTeams: async (): Promise<Team[]> => {
+    const response = await api.get("/teams"); // -> /api/teams
+    const res = response.data;
+    if (Array.isArray(res?.teams)) return res.teams as Team[];
+    if (Array.isArray(res?.data)) return res.data as Team[];
+    if (Array.isArray(res)) return res as Team[];
+    return [];
   },
 
   // Update team
-  async updateTeam(
-    id: string,
-    payload: Partial<CreateTeamPayload>
-  ): Promise<ITeam> {
-    try {
-      const response = await api.put(`/teams/${id}`, payload);
-      const data = response.data;
-      return (data?.team || data) as ITeam;
-    } catch (error: any) {
-      console.error('Error updating team:', error);
-      throw error.response?.data || error.message;
-    }
+  updateTeam: async (id: string, data: CreateTeamPayload): Promise<Team> => {
+    const response = await api.put(`/teams/${id}`, data); // -> /api/teams/:id
+    const res = response.data;
+    return (res?.team || res?.data) as Team;
   },
 
   // Delete team
-  async deleteTeam(id: string): Promise<boolean> {
-    try {
-      await api.delete(`/teams/${id}`);
-      return true;
-    } catch (error: any) {
-      console.error('Error deleting team:', error);
-      throw error.response?.data || error.message;
-    }
+  deleteTeam: async (id: string): Promise<boolean> => {
+    await api.delete(`/teams/${id}`); // -> /api/teams/:id
+    return true;
   },
 };
-
-export default teamService;

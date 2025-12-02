@@ -1,42 +1,28 @@
-// src/config/Team.model.ts
-import mongoose, { Schema, Document, Types } from 'mongoose';
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface ITeam extends Document {
-  _id: Types.ObjectId;
   name: string;
   description?: string;
+  lead?: Types.ObjectId | null;
   members: Types.ObjectId[];
-  lead: Types.ObjectId;
+  projects: Types.ObjectId[];
+  tasks: Types.ObjectId[];
+  createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const teamSchema = new Schema<ITeam>(
+const TeamSchema = new Schema<ITeam>(
   {
-    name: {
-      type: String,
-      required: [true, 'Team name is required'],
-      trim: true,
-      maxlength: 100,
-    },
-    description: {
-      type: String,
-      default: '',
-    },
-    lead: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    members: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
+    name: { type: String, required: true, trim: true },
+    description: { type: String, trim: true },
+    lead: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    members: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    projects: [{ type: Schema.Types.ObjectId, ref: "Project" }],
+    tasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }
 );
 
-export default mongoose.model<ITeam>('Team', teamSchema);
-
+export const Team = mongoose.model<ITeam>("Team", TeamSchema);

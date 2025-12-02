@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import Issue, { IIssue } from '../config/Issue.model';
 import ProjectModel from '../config/Project.model';
-import TeamModel from '../config/Team.model';
+import { Team } from '../config/Team.model';
 import UserModel from '../config/User.model';
 
 const getAuthUserId = (req: Request): string | undefined => {
@@ -67,7 +67,7 @@ export const createIssue = async (req: Request, res: Response) => {
     }
 
     if (team) {
-      const teamDoc = await TeamModel.findById(team);
+      const teamDoc = await Team.findById(team);
       if (!teamDoc) {
         return res.status(400).json({
           success: false,
@@ -185,7 +185,7 @@ export const updateIssue = async (req: Request, res: Response) => {
     }
 
     if (updates.team) {
-      const teamDoc = await TeamModel.findById(updates.team);
+      const teamDoc = await Team.findById(updates.team);
       if (!teamDoc) {
         return res.status(400).json({
           success: false,

@@ -29,6 +29,7 @@ import teamRoutes from './routes/teams.routes';
 import issueRoutes from './routes/issue.routes';
 import notificationsRoutes from './routes/notifications.routes';
 
+
 app.use('/api/auth', authRoutes);
 app.use('/api/meetings', meetingsRoutes);
 app.use('/api/projects', projectRoutes);

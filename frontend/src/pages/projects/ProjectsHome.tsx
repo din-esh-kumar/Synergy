@@ -78,18 +78,26 @@ const ProjectsHome: React.FC = () => {
   }, [projects, statusFilter, visibilityFilter, search]);
 
   const handleCreateProject = async (data: CreateProjectPayload) => {
-    try {
-      const created = await projectsService.createProject(data);
-      if (created) {
-        showToast.success('Project created successfully! 🚀');
-        setShowForm(false);
-        await fetchProjects();
-      }
-    } catch (error) {
-      console.error('Error creating project:', error);
-      showToast.error('Failed to create project');
+  try {
+    console.log("CreateProject payload:", data);
+    const created = await projectsService.createProject(data);
+    console.log("CreateProject response:", created);
+    if (created) {
+      showToast.success("Project created successfully! 🚀");
+      setShowForm(false);
+      await fetchProjects();
     }
-  };
+  } catch (error: any) {
+    console.error(
+      "Error creating project:",
+      error?.response?.data || error
+    );
+    showToast.error(
+      error?.response?.data?.message || "Failed to create project"
+    );
+  }
+};
+
 
   const handleUpdateProject = async (data: CreateProjectPayload) => {
     if (!editingProject?._id) return;

@@ -1,75 +1,64 @@
-// src/config/Issue.model.ts
+// src/config/Meeting.model.ts
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
-export interface IIssue extends Document {
+export interface IMeeting extends Document {
   _id: Types.ObjectId;
   title: string;
   description?: string;
-  type: 'BUG' | 'TASK' | 'STORY';
-  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  projectId: Types.ObjectId;
-  reporter: Types.ObjectId;
-  assignee?: Types.ObjectId | null;
-  team?: Types.ObjectId | null;
-  dueDate?: Date | null;
+  location?: string;
+  joinLink?: string;
+  startTime: Date;
+  endTime: Date;
+  organizer: Types.ObjectId;
+  attendees: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
 
-const issueSchema = new Schema<IIssue>(
+const meetingSchema = new Schema<IMeeting>(
   {
     title: {
       type: String,
-      required: [true, 'Issue title is required'],
+      required: [true, 'Meeting title is required'],
       trim: true,
       maxlength: 150,
     },
     description: {
       type: String,
       default: '',
+      trim: true,
     },
-    type: {
+    location: {
       type: String,
-      enum: ['BUG', 'TASK', 'STORY'],
-      default: 'TASK',
+      default: '',
+      trim: true,
     },
-    status: {
+    joinLink: {
       type: String,
-      enum: ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'],
-      default: 'OPEN',
+      default: '',
+      trim: true,
     },
-    priority: {
-      type: String,
-      enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
-      default: 'MEDIUM',
-    },
-    projectId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Project',
-      required: true,
-    },
-    reporter: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    assignee: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
-    team: {
-      type: Schema.Types.ObjectId,
-      ref: 'Team',
-      default: null,
-    },
-    dueDate: {
+    startTime: {
       type: Date,
-      default: null,
+      required: [true, 'Start time is required'],
     },
+    endTime: {
+      type: Date,
+      required: [true, 'End time is required'],
+    },
+    organizer: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    attendees: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   { timestamps: true }
 );
 
-export default mongoose.model<IIssue>('Issue', issueSchema);
+export default mongoose.model<IMeeting>('Meeting', meetingSchema);
