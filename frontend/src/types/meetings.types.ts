@@ -33,7 +33,11 @@ export interface Meeting {
 }
 
 // Payload types (same as Meeting, just for clarity in API calls)
-export type CreateMeetingPayload = Omit<Meeting, '_id' | 'createdAt' | 'updatedAt' | 'status'>;
+export type CreateMeetingPayload = Omit<
+  Meeting,
+  '_id' | 'createdAt' | 'updatedAt' | 'status'
+>;
+
 
 export type UpdateMeetingPayload = Partial<Omit<Meeting, '_id' | 'createdAt' | 'updatedAt'>>;
 
@@ -63,3 +67,4 @@ export interface DashboardData {
   stats: DashboardStats;
   recentTasks?: any[];
 }
+

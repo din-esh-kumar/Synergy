@@ -1,21 +1,23 @@
-// src/pages/team/TeamForm.tsx
-import React, { useState } from 'react';
-import { User } from '../../types/user.types';
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
+import { User } from "../../types/user.types";
+
+export interface TeamFormValues {
+  name: string;
+  description?: string;
+  lead: string; // userId
+  memberIds: string[]; // userIds
+}
 
 interface TeamFormProps {
   initialData?: {
-    name: string;
+    name?: string;
     description?: string;
-    lead?: string;        // user id
-    members?: string[];   // user ids
+    lead?: string; // userId
+    memberIds?: string[]; // userIds
   };
   users: User[];
-  onSubmit: (payload: {
-    name: string;
-    description?: string;
-    lead: string;
-    members: string[];
-  }) => Promise<void> | void;
+  onSubmit: (payload: TeamFormValues) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -25,142 +27,190 @@ const TeamForm: React.FC<TeamFormProps> = ({
   onSubmit,
   onCancel,
 }) => {
-  const [name, setName] = useState(initialData?.name ?? '');
-  const [description, setDescription] = useState(initialData?.description ?? '');
-  const [lead, setLead] = useState(initialData?.lead ?? '');
-  const [members, setMembers] = useState<string[]>(initialData?.members ?? []);
+  const [name, setName] = useState(initialData?.name || "");
+  const [description, setDescription] = useState(
+    initialData?.description || ""
+  );
+  const [lead, setLead] = useState(initialData?.lead || "");
+  const [memberIds, setMemberIds] = useState<string[]>(
+    initialData?.memberIds || []
+  );
   const [submitting, setSubmitting] = useState(false);
 
-  const handleMembersChange = (userId: string) => {
-    setMembers(prev =>
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || "");
+      setDescription(initialData.description || "");
+      setLead(initialData.lead || "");
+      setMemberIds(initialData.memberIds || []);
+    }
+  }, [initialData]);
+
+  // Debug: see what users the form receives
+  useEffect(() => {
+    console.log("TeamForm users prop:", users);
+  }, [users]);
+
+  const handleToggleMember = (userId: string) => {
+    setMemberIds((prev) =>
       prev.includes(userId)
-        ? prev.filter(id => id !== userId)
+        ? prev.filter((id) => id !== userId)
         : [...prev, userId]
     );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !lead) return;
+    if (!name.trim()) {
+      alert("Please enter a team name");
+      return;
+    }
+    // If your backend requires a lead, uncomment this:
+    // if (!lead) {
+    //   alert("Please select a team lead");
+    //   return;
+    // }
 
-    setSubmitting(true);
     try {
+      setSubmitting(true);
       await onSubmit({
         name: name.trim(),
-        description: description.trim() || undefined,
+        description: description || "",
         lead,
-        members,
+        memberIds,
       });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const isEdit = Boolean(initialData);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-lg rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">
-          {isEdit ? 'Edit Team' : 'New Team'}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Header like ProjectForm */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">
+          {initialData ? "Edit Team" : "Create New Team"}
         </h2>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
+        >
+          <X size={24} />
+        </button>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Team name */}
+      {/* Two-column layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Left side: name, desc, lead */}
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
-              Team name
+            <label className="block text-sm font-medium mb-2">
+              Team Name *
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Platform Engineering"
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter team name"
+              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
-          {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
+            <label className="block text-sm font-medium mb-2">
               Description
             </label>
             <textarea
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              rows={3}
               value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Short description of the team's responsibilities"
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter team description"
+              rows={4}
+              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          {/* Team lead */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
-              Team lead
-            </label>
+            <label className="block text-sm font-medium mb-2">Team Lead</label>
             <select
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={lead}
-              onChange={e => setLead(e.target.value)}
-              required
+              onChange={(e) => setLead(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
             >
-              <option value="">Select lead</option>
-              {users.map(u => (
+              <option value="">Select team lead</option>
+              {users.map((u) => (
                 <option key={u._id} value={u._id}>
                   {u.name} ({u.email})
                 </option>
               ))}
             </select>
           </div>
+        </div>
 
-          {/* Team members */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
-              Team members
-            </label>
-            <div className="max-h-40 overflow-y-auto border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 space-y-1">
-              {users.map(u => (
-                <label
-                  key={u._id}
-                  className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200"
-                >
-                  <input
-                    type="checkbox"
-                    className="rounded border-slate-300 dark:border-slate-600"
-                    checked={members.includes(u._id)}
-                    onChange={() => handleMembersChange(u._id)}
-                  />
-                  <span>
-                    {u.name}{' '}
-                    <span className="text-xs text-slate-400">({u.email})</span>
-                  </span>
-                </label>
-              ))}
-            </div>
+        {/* Right side: members list */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium">Team Members</label>
+            <span className="text-xs text-slate-500">
+              {memberIds.length} selected
+            </span>
           </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
-            >
-              {submitting ? 'Saving...' : isEdit ? 'Save changes' : 'Create team'}
-            </button>
+          <div className="max-h-64 overflow-y-auto border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 p-2 space-y-1">
+            {users.length === 0 ? (
+              <p className="text-xs text-slate-400 px-1 py-2">
+                No users available.
+              </p>
+            ) : (
+              users.map((u) => {
+                const isSelected = memberIds.includes(u._id);
+                return (
+                  <button
+                    key={u._id}
+                    type="button"
+                    onClick={() => handleToggleMember(u._id)}
+                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs ${
+                      isSelected
+                        ? "bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 border border-blue-200 dark:border-blue-700"
+                        : "hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-transparent"
+                    }`}
+                  >
+                    <span className="flex flex-col text-left">
+                      <span className="font-medium">{u.name}</span>
+                      <span className="text-[10px] text-slate-400">
+                        {u.email}
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 uppercase">
+                      {u.role}
+                    </span>
+                  </button>
+                );
+              })
+            )}
           </div>
-        </form>
+        </div>
       </div>
-    </div>
+
+      {/* Footer buttons like ProjectForm */}
+      <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-600">
+        <button
+          type="submit"
+          className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          disabled={submitting}
+        >
+          {initialData ? "Update Team" : "Create Team"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 px-4 py-2 bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg font-medium hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors"
+          disabled={submitting}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 };
 

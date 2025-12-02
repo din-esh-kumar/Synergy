@@ -3,7 +3,6 @@ import Meeting from '../config/Meeting.model';
 import User from '../config/User.model';
 import { Notification } from '../config/Notification.model';
 
-
 // helper to get current user id safely
 const getAuthUserId = (req: Request): string | undefined => {
   const u = (req as any).user;
@@ -20,9 +19,8 @@ export const createMeeting = async (req: Request, res: Response) => {
       startTime,
       endTime,
       location,
-      meetingLink,
+      joinLink,
       attendees,
-      reminder,
     } = req.body;
 
     const organizerId = getAuthUserId(req);
@@ -49,13 +47,6 @@ export const createMeeting = async (req: Request, res: Response) => {
       });
     }
 
-    if (start < new Date()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot schedule meetings in the past',
-      });
-    }
-
     if (attendees && attendees.length > 0) {
       const existingUsers = await User.find({ _id: { $in: attendees } });
       if (existingUsers.length !== attendees.length) {
@@ -72,16 +63,15 @@ export const createMeeting = async (req: Request, res: Response) => {
       startTime: start,
       endTime: end,
       location,
-      meetingLink,
+      joinLink,
       organizer: organizerId,
       attendees: attendees || [],
-      reminder,
     });
 
     await meeting.save();
     await meeting.populate('organizer attendees', 'name email');
 
-    // Notifications for attendees (type: 'meeting')
+    // attendee notifications
     if (Array.isArray(attendees) && attendees.length > 0) {
       const attendeeIds = attendees
         .map((id: any) => id?.toString?.() || id)
@@ -110,7 +100,7 @@ export const createMeeting = async (req: Request, res: Response) => {
       }
     }
 
-    // Notification for organizer
+    // organizer notification
     try {
       await Notification.create({
         userId: organizerId,
@@ -127,7 +117,7 @@ export const createMeeting = async (req: Request, res: Response) => {
       console.error('Failed to create organizer notification:', notifErr);
     }
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Meeting created successfully',
       meeting,
@@ -391,7 +381,6 @@ export const getUpcomingMeetings = async (req: Request, res: Response) => {
     const meetings = await Meeting.find({
       $or: [{ organizer: userId }, { attendees: userId }],
       startTime: { $gte: now },
-      status: 'scheduled',
     })
       .populate('organizer attendees', 'name email')
       .sort({ startTime: 1 })

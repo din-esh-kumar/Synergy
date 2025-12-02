@@ -3,14 +3,13 @@ import Project from '../config/Project.model';
 import User from '../config/User.model';
 
 // Create Project
+// Create Project
 export const createProject = async (req: Request, res: Response) => {
   try {
-    const { name, description, startDate, endDate, visibility, team } =
-      req.body;
-    const userId = (req as any).user._id;
+    const { name, description, startDate, endDate, visibility, team } = req.body;
+    const userId = (req as any).user._id;   // set by auth.middleware
     const userRole = (req as any).user.role;
 
-    // Only ADMIN and MANAGER can create projects
     if (userRole === 'EMPLOYEE') {
       return res.status(403).json({
         success: false,
@@ -25,32 +24,43 @@ export const createProject = async (req: Request, res: Response) => {
       });
     }
 
+    // ensure owner is always part of team
+    let projectTeam: string[] = [];
+    if (Array.isArray(team) && team.length) {
+      projectTeam = Array.from(new Set([...team, userId]));
+    } else {
+      projectTeam = [userId];
+    }
+
     const project = new Project({
       name,
       description,
       startDate,
       endDate,
       visibility: visibility || 'PRIVATE',
-      owner: userId,
-      team: team || [userId],
+      owner: userId,          // <<< IMPORTANT
+      team: projectTeam,
     });
 
     await project.save();
     await project.populate('owner', 'name email');
     await project.populate('team', 'name email');
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Project created successfully',
       data: project,
     });
   } catch (error: any) {
-    res.status(500).json({
+    console.error('createProject error:', error);
+    return res.status(500).json({
       success: false,
       message: error.message || 'Error creating project',
     });
   }
 };
+
+
 
 // Get All Projects
 export const getProjects = async (req: Request, res: Response) => {
