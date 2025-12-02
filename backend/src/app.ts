@@ -1,71 +1,68 @@
-import express, { Application } from 'express';
+// src/app.ts
+import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
 import dotenv from 'dotenv';
 
-// Import routes
-import authRoutes from './routes/auth.routes';
-import userRoutes from './routes/user.routes';
-import projectRoutes from './routes/project.routes';
-import issueRoutes from './routes/issue.routes';
-import updatesRoutes from './routes/updates.routes';
-import meetingsRoutes from './routes/meetings.routes';
-import dashboardRoutes from './routes/dashboard.routes';
-
-// Import middleware
-import errorHandler from "./middleware/errorHandler";
-
-
+// Load environment variables (optional here if already done in server.ts)
 dotenv.config();
 
-const app: Application = express();
+// Initialize express app
+const app: Express = express();
 
-// Security middleware
-app.use(helmet());
+// Middleware
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  credentials: true,
+}));
 
-// CORS configuration
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
-    credentials: true,
-  })
-);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Logging middleware
-app.use(morgan('dev'));
+// Routes
+import authRoutes from './routes/auth.routes';
+import meetingsRoutes from './routes/meetings.routes';
+import projectRoutes from './routes/project.routes';
+import taskRoutes from './routes/task.routes';
+import adminUserRoutes from './routes/user.routes';
+import dashboardRoutes from './routes/dashboard.routes';
+import teamRoutes from './routes/teams.routes';
+import issueRoutes from './routes/issue.routes';
+import notificationsRoutes from './routes/notifications.routes';
 
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use('/api/auth', authRoutes);
+app.use('/api/meetings', meetingsRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/admin/users', adminUserRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/teams', teamRoutes);
+app.use('/api/issues', issueRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    message: 'Server is running',
+// Health check
+app.get('/api/health', (req: Request, res: Response) => {
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
   });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/issues', issueRoutes);
-app.use('/api/updates', updatesRoutes);
-app.use('/api/meetings', meetingsRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+// Error handling middleware
+app.use((err: any, req: Request, res: Response) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal server error',
+  });
+});
 
 // 404 handler
-app.use((req, res) => {
-  res.status(404).json({ 
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
     success: false,
-    message: 'Route not found' 
+    message: 'Route not found',
   });
 });
-
-// Error handler (must be last)
-app.use(errorHandler);
 
 export default app;

@@ -1,0 +1,90 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Light theme - default */
+:root {
+  color-scheme: light;
+}
+
+/* Dark theme */
+html.dark,
+html[data-color-scheme='dark'] {
+  color-scheme: dark;
+}
+
+/* Smooth transitions */
+* {
+  @apply transition-colors duration-300;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-100 dark:bg-slate-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-400 dark:bg-slate-600 rounded-full hover:bg-slate-500 dark:hover:bg-slate-500;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  @apply animate-[fadeIn_0.3s_ease-in];
+}
+
+.animate-slide-down {
+  @apply animate-[slideDown_0.3s_ease-out];
+}
+
+/* Form styles */
+input,
+textarea,
+select {
+  @apply bg-white dark:bg-slate-700 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  @apply border-blue-500 dark:border-blue-400;
+}
+
+/* Button reset */
+button {
+  @apply cursor-pointer;
+}
+
+/* Link styles */
+a {
+  @apply text-blue-600 dark:text-blue-400 hover:underline;
+}
+
+/* Card hover effect */
+.card {
+  @apply transition-all duration-300 hover:shadow-lg;
+}

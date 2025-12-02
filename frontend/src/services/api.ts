@@ -1,19 +1,19 @@
 import axios from 'axios';
+//import { useAuth } from '../context/AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
-const api = axios.create({
-  baseURL: API_URL,
+const axiosInstance = axios.create({
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
 });
 
-// Request interceptor - Add auth token
-api.interceptors.request.use(
+// Add token to requests
+axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -22,12 +22,12 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor - Handle errors
-api.interceptors.response.use(
+// Handle response errors
+axiosInstance.interceptors.response.use(
   (response) => response,
-  async (error) => {
+  (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
@@ -35,4 +35,4 @@ api.interceptors.response.use(
   }
 );
 
-export default api;
+export default axiosInstance;

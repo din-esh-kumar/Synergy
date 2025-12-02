@@ -1,103 +1,75 @@
-import mongoose, { Schema, Document } from 'mongoose';
+// src/config/Issue.model.ts
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
-export interface IMeeting extends Document {
+export interface IIssue extends Document {
+  _id: Types.ObjectId;
   title: string;
   description?: string;
-  startTime: Date;
-  endTime: Date;
-  location?: string;
-  meetingLink?: string;
-  organizer: mongoose.Types.ObjectId;
-  attendees: mongoose.Types.ObjectId[];
-  status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
-  reminder?: number;
+  type: 'BUG' | 'TASK' | 'STORY';
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  projectId: Types.ObjectId;
+  reporter: Types.ObjectId;
+  assignee?: Types.ObjectId | null;
+  team?: Types.ObjectId | null;
+  dueDate?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const MeetingSchema: Schema = new Schema(
+const issueSchema = new Schema<IIssue>(
   {
     title: {
       type: String,
-      required: [true, 'Meeting title is required'],
+      required: [true, 'Issue title is required'],
       trim: true,
-      maxlength: [200, 'Title cannot exceed 200 characters'],
+      maxlength: 150,
     },
     description: {
       type: String,
-      trim: true,
-      maxlength: [1000, 'Description cannot exceed 1000 characters'],
+      default: '',
     },
-    startTime: {
-      type: Date,
-      required: [true, 'Start time is required'],
-      index: true,
-    },
-    endTime: {
-      type: Date,
-      required: [true, 'End time is required'],
-      validate: {
-        validator: function (this: IMeeting, value: Date) {
-          return value > this.startTime;
-        },
-        message: 'End time must be after start time',
-      },
-    },
-    location: {
+    type: {
       type: String,
-      trim: true,
-      maxlength: [200, 'Location cannot exceed 200 characters'],
+      enum: ['BUG', 'TASK', 'STORY'],
+      default: 'TASK',
     },
-    meetingLink: {
-      type: String,
-      trim: true,
-      validate: {
-        validator: function (v: string) {
-          if (!v) return true;
-          return /^https?:\/\/.+/.test(v);
-        },
-        message: 'Meeting link must be a valid URL',
-      },
-    },
-    organizer: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Organizer is required'],
-      index: true,
-    },
-    attendees: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
     status: {
       type: String,
-      enum: ['scheduled', 'ongoing', 'completed', 'cancelled'],
-      default: 'scheduled',
-      index: true,
+      enum: ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'],
+      default: 'OPEN',
     },
-    reminder: {
-      type: Number,
-      default: 15,
-      min: [0, 'Reminder cannot be negative'],
+    priority: {
+      type: String,
+      enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+      default: 'MEDIUM',
+    },
+    projectId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Project',
+      required: true,
+    },
+    reporter: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    assignee: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    team: {
+      type: Schema.Types.ObjectId,
+      ref: 'Team',
+      default: null,
+    },
+    dueDate: {
+      type: Date,
+      default: null,
     },
   },
-  {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
-  }
+  { timestamps: true }
 );
 
-// Indexes for better query performance
-MeetingSchema.index({ organizer: 1, startTime: 1 });
-MeetingSchema.index({ attendees: 1, startTime: 1 });
-MeetingSchema.index({ status: 1, startTime: 1 });
-
-// Virtual for meeting duration
-MeetingSchema.virtual('duration').get(function (this: IMeeting) {
-  return Math.abs(this.endTime.getTime() - this.startTime.getTime()) / 60000; // in minutes
-});
-
-export default mongoose.model<IMeeting>('Meeting', MeetingSchema);
+export default mongoose.model<IIssue>('Issue', issueSchema);

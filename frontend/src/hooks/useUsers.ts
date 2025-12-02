@@ -1,22 +1,23 @@
 import { useState, useEffect } from 'react';
-import { userService } from '../services/user.service';
-import { User as TypeUser } from '../types/user.types';
-import { User as ServiceUser } from '../services/user.service';
+import userService from '../services/user.service';
+import { User } from '../types/user.types';
 
 export const useUsers = () => {
-  const [users, setUsers] = useState<TypeUser[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const data: ServiceUser[] = await userService.getAllUsers();
-        // Map service users to frontend User type
-        const mappedUsers: TypeUser[] = data.map(u => ({
-          _id: u._id || '', // ensure _id is a string
+        const data: User[] = await userService.getAllUsers();
+        // If backend already returns {_id,name,email,role} you can even skip mapping
+        const mappedUsers: User[] = data.map(u => ({
+          _id: u._id,          // assume backend always sends id
           name: u.name,
           email: u.email,
           role: u.role,
+          avatar: u.avatar,
+          createdAt: u.createdAt,
         }));
         setUsers(mappedUsers);
       } catch (error) {

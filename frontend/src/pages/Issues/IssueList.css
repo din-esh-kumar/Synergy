@@ -1,0 +1,19 @@
+/* Lightweight extras; Tailwind does most styling */
+
+/* horizontal scroll area from the table wrapper */
+.issue-table-wrapper {
+  scrollbar-width: thin;
+}
+
+.issue-table-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+
+.issue-table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.issue-table-wrapper::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.7); /* slate-400 */
+  border-radius: 9999px;
+}

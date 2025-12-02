@@ -1,20 +1,13 @@
+// src/services/user.service.ts
 import api from './api';
-
-export interface User {
-  _id?: string;
-  name: string;
-  email: string;
-  role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
-  avatar?: string;
-  createdAt?: string;
-}
+import { User } from '../types/user.types';
 
 export const userService = {
   // Get all users
   getAllUsers: async (): Promise<User[]> => {
     try {
       const response = await api.get('/users');
-      return response.data?.users || [];
+      return (response.data?.users || []) as User[];
     } catch (error) {
       console.error('Error fetching users:', error);
       return [];
@@ -25,7 +18,7 @@ export const userService = {
   getUserById: async (id: string): Promise<User | null> => {
     try {
       const response = await api.get(`/users/${id}`);
-      return response.data?.user || null;
+      return (response.data?.user || null) as User | null;
     } catch (error) {
       console.error('Error fetching user:', error);
       return null;
@@ -36,7 +29,7 @@ export const userService = {
   createUser: async (data: User): Promise<User | null> => {
     try {
       const response = await api.post('/users', data);
-      return response.data?.user || null;
+      return (response.data?.user || null) as User | null;
     } catch (error) {
       console.error('Error creating user:', error);
       throw error;
@@ -44,10 +37,13 @@ export const userService = {
   },
 
   // Update user
-  updateUser: async (id: string, data: Partial<User>): Promise<User | null> => {
+  updateUser: async (
+    id: string,
+    data: Partial<User>
+  ): Promise<User | null> => {
     try {
       const response = await api.put(`/users/${id}`, data);
-      return response.data?.user || null;
+      return (response.data?.user || null) as User | null;
     } catch (error) {
       console.error('Error updating user:', error);
       throw error;

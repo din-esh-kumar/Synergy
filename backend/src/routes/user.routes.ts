@@ -1,25 +1,32 @@
-import express from "express";
+// backend/src/routes/user.routes.ts
+import express from 'express';
+import authenticateUser from '../middleware/auth.middleware';
+import { isAdmin } from '../middleware/IsAdmin';
 import {
+  // adjust these to exactly match your user.controller.ts exports
+  getUser,              // for /me
+  updateUser,           // for /me
   getAllUsers,
-  getUserById,
-  updateUser,
+  getUserById,          // if you have this; otherwise remove the route
+  createUser,
   deleteUser,
-  updateUserRole
-} from "../controllers/user.controller";
-import { isAdmin } from "../middleware/IsAdmin";
-import { authenticateJWT } from "../middleware/auth.middleware"; // JWT auth middleware
+  updateUserStatus,     // if you have this; otherwise remove the route
+} from '../controllers/user.controller';
 
 const router = express.Router();
 
-// All routes below require authentication (employee, manager, admin)
-router.use(authenticateJWT);
+// Logged-in user endpoints (profile)
+router.get('/me', authenticateUser, getUser);
+router.put('/me', authenticateUser, updateUser);
 
-router.get("/", getAllUsers);
-router.get("/:id", getUserById);
-router.put("/:id", updateUser);
-router.delete("/:id", deleteUser);
+// Admin-only user management
+router.get('/', authenticateUser, isAdmin, getAllUsers);
 
-// Only admin can PATCH role field
-router.patch("/:id/role", isAdmin, updateUserRole);
+router.get('/:id', authenticateUser, isAdmin, getUserById);
+
+router.post('/', authenticateUser, isAdmin, createUser);
+router.put('/:id', authenticateUser, isAdmin, updateUser);
+router.delete('/:id', authenticateUser, isAdmin, deleteUser);
+router.patch('/:id/status', authenticateUser, isAdmin, updateUserStatus);
 
 export default router;

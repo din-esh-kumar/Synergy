@@ -29,6 +29,27 @@ export interface DashboardStats {
   completedTasksThisWeek: number;
   tasksByStatus: Array<{ _id: string; count: number }>;
   projectsByStatus: Array<{ _id: string; count: number }>;
+  // Optional extras used in UI widgets
+  totalTeamMembers?: number;
+  completedTasks?: number;
+  ongoingProjects?: number;
+}
+
+export interface DashboardWidget {
+  title: string;
+  value: number | string;
+  icon: string;
+  color: 'blue' | 'green' | 'purple' | 'orange' | 'red';
+  trend?: number;
+}
+
+export interface RoleFeature {
+  role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canAssignUsers: boolean;
+  viewAll: boolean;
 }
 
 export interface DashboardData {
