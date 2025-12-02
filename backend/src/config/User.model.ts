@@ -1,46 +1,55 @@
-// backend/src/config/User.model.ts
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
-// User interface
 export interface IUser extends Document {
-  _id: mongoose.Types.ObjectId;
-  id?: string;
+  _id: Types.ObjectId;
   name: string;
   email: string;
   password: string;
-  role: "ADMIN" | "MANAGER" | "EMPLOYEE";
-  managerId?: mongoose.Types.ObjectId | null;
-  createdAt?: Date;
-  updatedAt?: Date;
+  role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+  phone?: string;
+  designation?: string;
+  status: boolean;           // active / inactive
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-// User schema
-const UserSchema: Schema<IUser> = new Schema(
+const userSchema = new Schema<IUser>(
   {
-    name: { type: String, required: true },
-
-    email: { type: String, required: true, unique: true },
-
-    password: { type: String, required: true },
-
+    name: {
+      type: String,
+      required: [true, 'Name is required'],
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: [true, 'Email is required'],
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: [true, 'Password is required'],
+    },
     role: {
       type: String,
-      enum: ["ADMIN", "MANAGER", "EMPLOYEE"],
-      default: "EMPLOYEE",
+      enum: ['ADMIN', 'MANAGER', 'EMPLOYEE'],
+      default: 'EMPLOYEE',
     },
-
-    managerId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
+    phone: {
+      type: String,
+      default: '',
+    },
+    designation: {
+      type: String,
+      default: '',
+    },
+    status: {
+      type: Boolean,
+      default: true,
     },
   },
-  {
-    timestamps: true, // automatically adds createdAt & updatedAt
-  }
+  { timestamps: true }
 );
 
-// ✅ Prevent OverwriteModelError
-const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
-
-export default User;
+export default mongoose.model<IUser>('User', userSchema);

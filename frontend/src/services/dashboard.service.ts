@@ -1,114 +1,29 @@
 import api from './api';
+import { DashboardStats } from '../types/dashboard.types';
 
-export interface DashboardStats {
-  totalUsers?: number;
-  activeProjects?: number;
-  pendingTasks?: number;
-  upcomingMeetings?: number;
-  totalTeams?: number;
-  completedTasks?: number;
-  [key: string]: any;
-}
+const emptyStats: DashboardStats = {
+  totalProjects: 0,
+  totalTasks: 0,
+  totalMeetings: 0,
+  totalIssues: 0,
+  todaysMeetings: 0,
+  completedTasksThisWeek: 0,
+  tasksByStatus: [],
+  projectsByStatus: [],
+};
 
-export const dashboardService = {
-  // General dashboard stats
+const dashboardService = {
   getDashboardStats: async (): Promise<DashboardStats> => {
     try {
       const response = await api.get('/dashboard/stats');
-      return response.data || {};
+      // Might be { stats: ... } or just the raw stats object
+      return (response.data?.stats || response.data || emptyStats) as DashboardStats;
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
-      return {};
+      return emptyStats;
     }
-  },
-
-  // Admin stats
-  getAdminStats: async (): Promise<DashboardStats> => {
-    try {
-      const response = await api.get('/admin/stats');
-      return response.data || {};
-    } catch (error) {
-      console.error('Error fetching admin stats:', error);
-      return {};
-    }
-  },
-
-  // Manager stats
-  getManagerStats: async (): Promise<DashboardStats> => {
-    try {
-      const response = await api.get('/manager/stats');
-      return response.data || {};
-    } catch (error) {
-      console.error('Error fetching manager stats:', error);
-      return {};
-    }
-  },
-
-  // Employee stats
-  getEmployeeStats: async (): Promise<DashboardStats> => {
-    try {
-      const response = await api.get('/employee/stats');
-      return response.data || {};
-    } catch (error) {
-      console.error('Error fetching employee stats:', error);
-      return {};
-    }
-  },
-
-  // Recent activity
-  getRecentActivity: async (limit = 10) => {
-    try {
-      const response = await api.get(`/dashboard/activity?limit=${limit}`);
-      return response.data?.activities || [];
-    } catch (error) {
-      console.error('Error fetching activity:', error);
-      return [];
-    }
-  },
-
-  // Projects
-  getProjects: async () => {
-    try {
-      const response = await api.get('/projects');
-      return response.data?.projects || [];
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      return [];
-    }
-  },
-
-  // Tasks
-  getTasks: async () => {
-    try {
-      const response = await api.get('/tasks');
-      return response.data?.tasks || [];
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-      return [];
-    }
-  },
-
-  // Users
-  getUsers: async () => {
-    try {
-      const response = await api.get('/users');
-      return response.data?.users || [];
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      return [];
-    }
-  },
-
-  // Teams
-  getTeams: async () => {
-    try {
-      const response = await api.get('/teams');
-      return response.data?.teams || [];
-    } catch (error) {
-      console.error('Error fetching teams:', error);
-      return [];
-    }
-  },
+  }
+  // You can add role-specific methods if needed, e.g. getAdminStats, etc.
 };
 
 export default dashboardService;

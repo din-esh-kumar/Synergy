@@ -1,61 +1,143 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
+import { showToast } from '../components/common/Toast';
+import { User } from '../types/meetings.types';
 
-interface User {
-  _id: string;
-  name: string;
-  email: string;
-  role: "ADMIN" | "MANAGER" | "EMPLOYEE";
-  avatarUrl?: string;
-}
-
-interface AuthContextValue {
+interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (user: User, token: string) => void;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  register: (name: string, email: string, password: string, role: string) => Promise<void>;
+  isAuthenticated: boolean;
+  refreshUser: () => Promise<void>;
+  loading: boolean;            // ✅ add this
 }
 
-const AuthContext = createContext<AuthContextValue>({
-  user: null,
-  token: null,
-  login: () => {},
-  logout: () => {},
-});
-
-export const useAuth = () => useContext(AuthContext);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Persist user on page load
   useEffect(() => {
-    // On load, load user/token from localStorage if they exist
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-    if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setToken(storedToken);
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+
+    if (storedToken && storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setToken(storedToken);
+        setUser(parsedUser);
+        api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+      } catch (error) {
+        console.error('Failed to parse stored user');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
+    setLoading(false);
   }, []);
 
-  const login = (user: User, token: string) => {
-    setUser(user);
-    setToken(token);
-    localStorage.setItem("user", JSON.stringify(user));
-    localStorage.setItem("token", token);
+  const refreshUser = async () => {
+    try {
+      if (token) {
+        const response = await api.get('/auth/me');
+        const userData = response.data?.user;
+        if (userData) {
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData)); // Persist updated user
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await api.post('/auth/login', { email, password });
+      const { user: userData, token: authToken } = response.data;
+
+      // Ensure role is correctly saved
+      const userWithRole = {
+        ...userData,
+        role: userData.role.toUpperCase(), // Normalize role
+      };
+
+      localStorage.setItem('token', authToken);
+      localStorage.setItem('user', JSON.stringify(userWithRole));
+
+      setToken(authToken);
+      setUser(userWithRole);
+      api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+
+      showToast.success(`Welcome back, ${userData.name}! 🎉`);
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || 'Login failed';
+      showToast.error(errorMsg);
+      throw error;
+    }
   };
 
   const logout = () => {
-    setUser(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setToken(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    window.location.href = "/login";
+    setUser(null);
+    delete api.defaults.headers.common['Authorization'];
+    showToast.success('Logged out successfully');
+  };
+
+  const register = async (name: string, email: string, password: string, role: string) => {
+    try {
+      const response = await api.post('/auth/register', { name, email, password, role });
+      const { user: userData, token: authToken } = response.data;
+
+      const userWithRole = {
+        ...userData,
+        role: userData.role.toUpperCase(),
+      };
+
+      localStorage.setItem('token', authToken);
+      localStorage.setItem('user', JSON.stringify(userWithRole));
+
+      setToken(authToken);
+      setUser(userWithRole);
+      api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+
+      showToast.success('Registration successful! Welcome! 🎉');
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || 'Registration failed';
+      showToast.error(errorMsg);
+      throw error;
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  <AuthContext.Provider
+    value={{
+      user,
+      token,
+      login,
+      logout,
+      register,
+      isAuthenticated: !!token,
+      refreshUser,
+      loading,          // ✅ expose the state
+    }}
+  >
+    {children}
+  </AuthContext.Provider>
+);
+}; 
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
 };

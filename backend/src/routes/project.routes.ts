@@ -1,15 +1,25 @@
-import { Router } from "express";
+// backend/src/routes/project.routes.ts
+import express from 'express';
+import authenticateUser from '../middleware/auth.middleware';
 import {
   createProject,
   getProjects,
-  getProjectById,
-} from "../controllers/project.controller";
-import authMiddleware from "../middleware/auth.middleware";
+  getProject,
+  updateProject,
+  deleteProject,
+  addTeamMember,
+} from '../controllers/project.controller';
 
-const router = Router();
+const router = express.Router();
 
-router.post("/", authMiddleware, createProject);
-router.get("/", authMiddleware, getProjects);
-router.get("/:id", authMiddleware, getProjectById);
+// authenticate all project routes
+router.use(authenticateUser);
+
+router.post('/', createProject);
+router.get('/', getProjects);
+router.get('/:id', getProject);
+router.put('/:id', updateProject);
+router.delete('/:id', deleteProject);
+router.post('/:id/team', addTeamMember);
 
 export default router;
