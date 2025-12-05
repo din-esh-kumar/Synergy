@@ -1,38 +1,23 @@
+// src/services/api.ts
 import axios from 'axios';
-//import { useAuth } from '../context/AuthContext';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+const api = axios.create({
+  baseURL: 'http://localhost:5000/api',
+  withCredentials: false,
 });
 
-// Add token to requests
-axiosInstance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+// Attach JWT token from localStorage to every request
+api.interceptors.request.use((config) => {
+  // Use the SAME key you use when saving the token on login
+  const token =
+    localStorage.getItem('synergy_token') || // try new key
+    localStorage.getItem('token');           // fallback to old key
 
-// Handle response errors
-axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
-export default axiosInstance;
+export default api;

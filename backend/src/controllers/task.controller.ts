@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Task from '../models/Task.model';
 import User from '../models/User.model';
+import Notification from '../models/Notification.model';
 
 // Create Task
 export const createTask = async (req: Request, res: Response) => {
@@ -9,6 +10,7 @@ export const createTask = async (req: Request, res: Response) => {
       req.body;
     const userId = (req as any).user._id;
     const userRole = (req as any).user.role;
+    const userName = (req as any).user.name || (req as any).user.email;
 
     // Validate required fields
     if (!title || !assignedTo) {
@@ -48,6 +50,30 @@ export const createTask = async (req: Request, res: Response) => {
     await task.save();
     await task.populate('assignedTo', 'name email');
     await task.populate('createdBy', 'name email');
+
+    // 🔔 Send notification to assigned user (if not the creator)
+    if (assignedTo !== userId) {
+      try {
+        await Notification.create({
+          user: assignedTo,
+          type: 'task',
+          title: 'New task assigned',
+          message: `You have been assigned task: ${title}`,
+          data: {
+            entityId: task._id.toString(),
+            entityType: 'task',
+            taskTitle: title,
+            projectId: projectId || null,
+            assignedBy: userId.toString(),
+            assignedByName: userName,
+            priority: priority || 'MEDIUM',
+            dueDate: dueDate || null,
+          },
+        } as any);
+      } catch (notifErr) {
+        console.error('Failed to create task notification', notifErr);
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -157,8 +183,10 @@ export const updateTask = async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = (req as any).user._id;
     const userRole = (req as any).user.role;
+    const userName = (req as any).user.name || (req as any).user.email;
 
     const task = await Task.findById(id);
+
     if (!task) {
       return res.status(404).json({
         success: false,
@@ -181,6 +209,10 @@ export const updateTask = async (req: Request, res: Response) => {
     const { title, description, status, priority, assignedTo, dueDate } =
       req.body;
 
+    // Track if assignee changed
+    const oldAssignee = task.assignedTo.toString();
+    const newAssignee = assignedTo;
+
     if (title) task.title = title;
     if (description !== undefined) task.description = description;
     if (status) task.status = status;
@@ -195,6 +227,52 @@ export const updateTask = async (req: Request, res: Response) => {
     await task.save();
     await task.populate('assignedTo', 'name email');
     await task.populate('createdBy', 'name email');
+
+    // 🔔 Send notification if task is reassigned
+    if (newAssignee && oldAssignee !== newAssignee && newAssignee !== userId) {
+      try {
+        await Notification.create({
+          user: newAssignee,
+          type: 'task',
+          title: 'Task reassigned',
+          message: `You have been assigned task: ${task.title}`,
+          data: {
+            entityId: task._id.toString(),
+            entityType: 'task',
+            taskTitle: task.title,
+            projectId: task.projectId || null,
+            reassignedBy: userId.toString(),
+            reassignedByName: userName,
+            priority: task.priority,
+            dueDate: task.dueDate || null,
+          },
+        } as any);
+      } catch (notifErr) {
+        console.error('Failed to create reassignment notification', notifErr);
+      }
+    }
+
+    // 🔔 Send notification when task is completed
+    if (status === 'COMPLETED' && oldAssignee !== userId) {
+      try {
+        await Notification.create({
+          user: oldAssignee,
+          type: 'task',
+          title: 'Task completed',
+          message: `Task "${task.title}" has been marked as completed`,
+          data: {
+            entityId: task._id.toString(),
+            entityType: 'task',
+            taskTitle: task.title,
+            projectId: task.projectId || null,
+            completedBy: userId.toString(),
+            completedByName: userName,
+          },
+        } as any);
+      } catch (notifErr) {
+        console.error('Failed to create completion notification', notifErr);
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -217,6 +295,7 @@ export const deleteTask = async (req: Request, res: Response) => {
     const userRole = (req as any).user.role;
 
     const task = await Task.findById(id);
+
     if (!task) {
       return res.status(404).json({
         success: false,
@@ -261,6 +340,7 @@ export const addComment = async (req: Request, res: Response) => {
     }
 
     const task = await Task.findById(id);
+
     if (!task) {
       return res.status(404).json({
         success: false,

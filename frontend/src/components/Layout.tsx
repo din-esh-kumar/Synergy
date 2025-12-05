@@ -19,7 +19,7 @@ const Layout: React.FC = () => {
               onClose={() => setSidebarOpen(false)}
             />
             <div className="flex-1 flex flex-col overflow-hidden">
-              <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+              <Navbar onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
               <main className="flex-1 overflow-y-auto">
                 <Outlet />
               </main>

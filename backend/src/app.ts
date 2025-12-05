@@ -1,20 +1,33 @@
-// src/app.ts
-import express, { Express, Request, Response } from 'express';
+// backend/src/app.ts
+
+import express, {
+  Express,
+  Application,
+  Request,
+  Response,
+  NextFunction,
+} from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 
-// Load environment variables (optional here if already done in server.ts)
+// Load environment variables (optional if already done in server.ts)
 dotenv.config();
 
 // Initialize express app
-const app: Express = express();
+const app: Application = express();
 
 // Middleware
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true,
-}));
-app.use('/uploads', express.static('uploads'));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    credentials: true,
+  }),
+);
+
+// Static uploads (adjust path if needed)
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -30,7 +43,6 @@ import issueRoutes from './routes/issue.routes';
 import notificationsRoutes from './routes/notifications.routes';
 import chatRoutes from './routes/chat.routes';
 import documentRoutes from './routes/document.routes';
-import notificationRoutes from './routes/notifications.routes';
 import settingsRoutes from './routes/settings.routes';
 
 app.use('/api/auth', authRoutes);
@@ -44,8 +56,8 @@ app.use('/api/issues', issueRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/documents', documentRoutes);
-app.use('/api/notifications', notificationRoutes);
 app.use('/api/settings', settingsRoutes);
+
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
@@ -55,16 +67,22 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
-// Error handling middleware
-app.use((err: any, req: Request, res: Response) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Internal server error',
-  });
-});
+// Error handling middleware – must have 4 params
+app.use(
+  (err: any, req: Request, res: Response, next: NextFunction) => {
+    console.error('Error:', err);
 
-// 404 handler
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || 'Internal server error';
+
+    res.status(status).json({
+      success: false,
+      message,
+    });
+  },
+);
+
+// 404 handler (placed AFTER routes, BEFORE export)
 app.use((req: Request, res: Response) => {
   res.status(404).json({
     success: false,

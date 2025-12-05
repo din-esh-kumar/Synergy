@@ -1,9 +1,11 @@
 // src/controllers/team.controller.ts
+
 import { Request, Response } from "express";
 import { Types } from "mongoose";
 import { Team } from "../models/Team.model";
 import Project from "../models/Project.model";
 import Task from "../models/Task.model";
+import Notification from "../models/Notification.model";
 
 // Create team
 export const createTeam = async (req: Request, res: Response) => {
@@ -33,6 +35,33 @@ export const createTeam = async (req: Request, res: Response) => {
       .populate("projects", "title status")
       .populate("tasks", "title status");
 
+    // 🔔 Send notifications to team members
+    if (memberIds && memberIds.length > 0) {
+      const notificationDocs = memberIds
+        .filter((uid: string) => uid && uid !== user._id.toString())
+        .map((uid: string) => ({
+          user: uid,
+          type: "team" as const,
+          title: "Added to team",
+          message: `You have been added to team: ${name}`,
+          data: {
+            entityId: team._id.toString(),
+            entityType: "team",
+            teamName: name,
+            createdBy: user._id.toString(),
+            createdByName: user.name || user.email,
+          },
+        }));
+
+      if (notificationDocs.length > 0) {
+        try {
+          await Notification.insertMany(notificationDocs as any[]);
+        } catch (notifErr) {
+          console.error("Failed to create team notifications", notifErr);
+        }
+      }
+    }
+
     return res.status(201).json(populated);
   } catch (error: any) {
     console.error("createTeam error:", error);
@@ -50,7 +79,6 @@ export const getTeams = async (req: Request, res: Response) => {
       .populate("members", "name email role")
       .populate("projects", "title status")
       .populate("tasks", "title status");
-
     res.json(teams);
   } catch (error: any) {
     console.error("getTeams error:", error);
@@ -75,7 +103,6 @@ export const getMyTeams = async (req: Request, res: Response) => {
       .populate("members", "name email role")
       .populate("projects", "title status")
       .populate("tasks", "title status");
-
     return res.json(teams);
   } catch (error: any) {
     console.error("getMyTeams error:", error);
@@ -93,9 +120,7 @@ export const getTeamById = async (req: Request, res: Response) => {
       .populate("members", "name email role")
       .populate("projects", "title status")
       .populate("tasks", "title status");
-
     if (!team) return res.status(404).json({ message: "Team not found" });
-
     res.json(team);
   } catch (error: any) {
     console.error("getTeamById error:", error);
@@ -114,9 +139,7 @@ export const updateTeam = async (req: Request, res: Response) => {
       leadId?: string;
       memberIds?: string[];
     };
-
     const update: any = {};
-
     if (name !== undefined) update.name = name;
     if (description !== undefined) update.description = description;
     if (leadId !== undefined)
@@ -132,9 +155,7 @@ export const updateTeam = async (req: Request, res: Response) => {
       .populate("members", "name email role")
       .populate("projects", "title status")
       .populate("tasks", "title status");
-
     if (!team) return res.status(404).json({ message: "Team not found" });
-
     res.json(team);
   } catch (error: any) {
     console.error("updateTeam error:", error);
@@ -149,7 +170,6 @@ export const deleteTeam = async (req: Request, res: Response) => {
   try {
     const team = await Team.findByIdAndDelete(req.params.id);
     if (!team) return res.status(404).json({ message: "Team not found" });
-
     res.json({ message: "Team deleted successfully" });
   } catch (error: any) {
     console.error("deleteTeam error:", error);
@@ -163,6 +183,15 @@ export const deleteTeam = async (req: Request, res: Response) => {
 export const updateTeamMembers = async (req: Request, res: Response) => {
   try {
     const { memberIds } = req.body as { memberIds: string[] };
+    const user = (req as any).user;
+    
+    // Get old team to identify new members
+    const oldTeam = await Team.findById(req.params.id);
+    const oldMemberIds = oldTeam?.members.map((m: any) => m.toString()) || [];
+    const newMemberIds = memberIds || [];
+    const addedMembers = newMemberIds.filter(
+      (id) => !oldMemberIds.includes(id)
+    );
 
     const membersObjectIds = (memberIds || []).map(
       (id) => new Types.ObjectId(id)
@@ -180,6 +209,33 @@ export const updateTeamMembers = async (req: Request, res: Response) => {
 
     if (!team) return res.status(404).json({ message: "Team not found" });
 
+    // 🔔 Send notifications to newly added members
+    if (addedMembers.length > 0) {
+      const notificationDocs = addedMembers
+        .filter((uid: string) => uid && uid !== user._id.toString())
+        .map((uid: string) => ({
+          user: uid,
+          type: "team" as const,
+          title: "Added to team",
+          message: `You have been added to team: ${team.name}`,
+          data: {
+            entityId: team._id.toString(),
+            entityType: "team",
+            teamName: team.name,
+            addedBy: user._id.toString(),
+            addedByName: user.name || user.email,
+          },
+        }));
+
+      if (notificationDocs.length > 0) {
+        try {
+          await Notification.insertMany(notificationDocs as any[]);
+        } catch (notifErr) {
+          console.error("Failed to create member notifications", notifErr);
+        }
+      }
+    }
+
     res.json(team);
   } catch (error: any) {
     console.error("updateTeamMembers error:", error);
@@ -194,7 +250,6 @@ export const updateTeamMembers = async (req: Request, res: Response) => {
 export const assignProjectsToTeam = async (req: Request, res: Response) => {
   try {
     const { projectIds } = req.body as { projectIds: string[] };
-
     const team = await Team.findById(req.params.id);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
@@ -216,7 +271,6 @@ export const assignProjectsToTeam = async (req: Request, res: Response) => {
       .populate("members", "name email role")
       .populate("projects", "title status")
       .populate("tasks", "title status");
-
     res.json(populated);
   } catch (error: any) {
     console.error("assignProjectsToTeam error:", error);
@@ -231,7 +285,6 @@ export const assignProjectsToTeam = async (req: Request, res: Response) => {
 export const assignTasksToTeam = async (req: Request, res: Response) => {
   try {
     const { taskIds } = req.body as { taskIds: string[] };
-
     const team = await Team.findById(req.params.id);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
@@ -253,7 +306,6 @@ export const assignTasksToTeam = async (req: Request, res: Response) => {
       .populate("members", "name email role")
       .populate("projects", "title status")
       .populate("tasks", "title status");
-
     res.json(populated);
   } catch (error: any) {
     console.error("assignTasksToTeam error:", error);

@@ -1,14 +1,15 @@
 import { Request, Response } from 'express';
 import Project from '../models/Project.model';
 import User from '../models/User.model';
+import Notification from '../models/Notification.model';
 
-// Create Project
 // Create Project
 export const createProject = async (req: Request, res: Response) => {
   try {
     const { name, description, startDate, endDate, visibility, team } = req.body;
-    const userId = (req as any).user._id;   // set by auth.middleware
+    const userId = (req as any).user._id;
     const userRole = (req as any).user.role;
+    const userName = (req as any).user.name || (req as any).user.email;
 
     if (userRole === 'EMPLOYEE') {
       return res.status(403).json({
@@ -38,13 +39,58 @@ export const createProject = async (req: Request, res: Response) => {
       startDate,
       endDate,
       visibility: visibility || 'PRIVATE',
-      owner: userId,          // <<< IMPORTANT
+      owner: userId,
       team: projectTeam,
     });
 
     await project.save();
     await project.populate('owner', 'name email');
     await project.populate('team', 'name email');
+
+    // 🔔 Send notifications to team members
+    const otherTeamMembers = projectTeam.filter(
+      (memberId: string) => memberId !== userId
+    );
+    if (otherTeamMembers.length > 0) {
+      const notificationDocs = otherTeamMembers.map((memberId: string) => ({
+        user: memberId,
+        type: 'project' as const,
+        title: 'Added to project',
+        message: `You have been added to project: ${name}`,
+        data: {
+          entityId: project._id.toString(),
+          entityType: 'project',
+          projectName: name,
+          createdBy: userId.toString(),
+          createdByName: userName,
+        },
+      }));
+
+      if (notificationDocs.length > 0) {
+        try {
+          await Notification.insertMany(notificationDocs as any[]);
+        } catch (notifErr) {
+          console.error('Failed to create project notifications', notifErr);
+        }
+      }
+    }
+
+    // 🔔 Create notification for project owner
+    try {
+      await Notification.create({
+        user: userId,
+        type: 'project',
+        title: 'Project created',
+        message: `Your project "${name}" was created successfully.`,
+        data: {
+          entityId: project._id.toString(),
+          entityType: 'project',
+          projectName: name,
+        },
+      } as any);
+    } catch (notifErr) {
+      console.error('Failed to create owner notification', notifErr);
+    }
 
     return res.status(201).json({
       success: true,
@@ -59,8 +105,6 @@ export const createProject = async (req: Request, res: Response) => {
     });
   }
 };
-
-
 
 // Get All Projects
 export const getProjects = async (req: Request, res: Response) => {
@@ -154,6 +198,7 @@ export const updateProject = async (req: Request, res: Response) => {
     const userRole = (req as any).user.role;
 
     const project = await Project.findById(id);
+
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -215,6 +260,7 @@ export const deleteProject = async (req: Request, res: Response) => {
     const userRole = (req as any).user.role;
 
     const project = await Project.findById(id);
+
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -254,8 +300,10 @@ export const addTeamMember = async (req: Request, res: Response) => {
     const { userId: newMemberId } = req.body;
     const userId = (req as any).user._id;
     const userRole = (req as any).user.role;
+    const userName = (req as any).user.name || (req as any).user.email;
 
     const project = await Project.findById(id);
+
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -277,6 +325,25 @@ export const addTeamMember = async (req: Request, res: Response) => {
       project.team.push(newMemberId);
       await project.save();
       await project.populate('team', 'name email');
+
+      // 🔔 Send notification to newly added member
+      try {
+        await Notification.create({
+          user: newMemberId,
+          type: 'project',
+          title: 'Added to project',
+          message: `You have been added to project: ${project.name}`,
+          data: {
+            entityId: project._id.toString(),
+            entityType: 'project',
+            projectName: project.name,
+            addedBy: userId.toString(),
+            addedByName: userName,
+          },
+        } as any);
+      } catch (notifErr) {
+        console.error('Failed to create member notification', notifErr);
+      }
     }
 
     res.status(200).json({

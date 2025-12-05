@@ -2,7 +2,7 @@
 import { Request, Response } from "express";
 import Meeting from "../models/Meeting.model";
 import User from "../models/User.model";
-import Notification from "../models/Notification.model";
+import { createNotification } from "../utils/notificationEngine"; // ✅ ADDED
 
 // helper to get current user id safely
 const getAuthUserId = (req: Request): string | undefined => {
@@ -25,7 +25,6 @@ export const createMeeting = async (req: Request, res: Response) => {
       joinLink,
       attendees,
     } = req.body;
-
     const organizerId = getAuthUserId(req);
     const organizerName =
       (req as any).user?.name ||
@@ -79,49 +78,34 @@ export const createMeeting = async (req: Request, res: Response) => {
     await meeting.save();
     await meeting.populate("organizer attendees", "name email");
 
-    // attendee notifications (match your Notification schema: user, type, title, message, data)
+    // ✅ FIXED: Use notificationEngine for real-time delivery
     if (attendeeIds.length > 0 && organizerId) {
-      const docs = attendeeIds
-        .filter((uid) => uid && uid !== organizerId)
-        .map((uid) => ({
-          user: uid, // <-- use correct field name from Notification model
-          type: "meeting" as const,
-          title: "New meeting scheduled",
-          message: `You have been invited to ${meeting.title}.`,
-          data: {
-            entityId: meeting._id.toString(),
-            entityType: "meeting",
-            organizerId,
-            organizerName,
-          },
-        }));
-
-      if (docs.length > 0) {
-        try {
-          await Notification.insertMany(docs as any[]);
-        } catch (notifErr) {
-          console.error("Failed to create attendee notifications", notifErr);
-        }
-      }
+      // Notify attendees (exclude organizer)
+      await createNotification({
+        userIds: attendeeIds.filter(id => id !== organizerId),
+        type: 'meeting',
+        action: 'assigned',
+        title: 'New meeting invitation',
+        message: `You've been invited to "${meeting.title}"`,
+        entityType: 'meeting',
+        entityId: meeting._id.toString(),
+        icon: 'video',
+        color: '#3b82f6',
+      });
     }
 
-    // organizer notification
-    if (organizerId) {
-      try {
-        await Notification.create({
-          user: organizerId,
-          type: "meeting",
-          title: "Meeting created",
-          message: `Your meeting ${meeting.title} was created successfully.`,
-          data: {
-            entityId: meeting._id.toString(),
-            entityType: "meeting",
-          },
-        } as any);
-      } catch (notifErr) {
-        console.error("Failed to create organizer notification", notifErr);
-      }
-    }
+    // Notify organizer
+    await createNotification({
+      userId: organizerId,
+      type: 'meeting',
+      action: 'created',
+      title: 'Meeting created successfully',
+      message: `Your meeting "${meeting.title}" has ${attendeeIds.length} attendees`,
+      entityType: 'meeting',
+      entityId: meeting._id.toString(),
+      icon: 'check-circle',
+      color: '#10b981',
+    });
 
     return res.status(201).json({
       success: true,
@@ -161,6 +145,7 @@ export const getMeetings = async (req: Request, res: Response) => {
       if (startDate) {
         query.startTime.$gte = new Date(startDate as string);
       }
+
       if (endDate) {
         query.startTime.$lte = new Date(endDate as string);
       }
@@ -218,9 +203,7 @@ export const getMeetingById = async (req: Request, res: Response) => {
     const organizerIdStr = (meeting.organizer as any)._id
       ? (meeting.organizer as any)._id.toString()
       : (meeting.organizer as any).toString();
-
     const isOrganizer = organizerIdStr === userId;
-
     const isAttendee = Array.isArray(meeting.attendees)
       ? meeting.attendees.some((attendee: any) => {
           const attId = attendee?._id
@@ -257,6 +240,7 @@ export const updateMeeting = async (req: Request, res: Response) => {
     }
 
     const meeting = await Meeting.findById(id);
+
     if (!meeting) {
       return res.status(404).json({ success: false, message: "Meeting not found" });
     }
@@ -276,7 +260,6 @@ export const updateMeeting = async (req: Request, res: Response) => {
       const endTime = updates.endTime
         ? new Date(updates.endTime)
         : new Date(meeting.endTime);
-
       if (startTime >= endTime) {
         return res.status(400).json({
           success: false,
@@ -287,34 +270,33 @@ export const updateMeeting = async (req: Request, res: Response) => {
 
     // Normalize attendees to valid string IDs before validating
     if (Array.isArray(updates.attendees)) {
-  const normalizedIds: string[] = updates.attendees
-    .map((a: any) =>
-      typeof a === "string" ? a : a?._id?.toString() || a?.id
-    )
-    .filter((id: any) => typeof id === "string" && id.trim().length > 0);
+      const normalizedIds: string[] = updates.attendees
+        .map((a: any) =>
+          typeof a === "string" ? a : a?._id?.toString() || a?.id
+        )
+        .filter((id: any) => typeof id === "string" && id.trim().length > 0);
 
-  console.log("PUT /meetings/:id raw attendees:", updates.attendees);
-  console.log("PUT /meetings/:id normalized attendees:", normalizedIds);
+      console.log("PUT /meetings/:id raw attendees:", updates.attendees);
+      console.log("PUT /meetings/:id normalized attendees:", normalizedIds);
+      updates.attendees = normalizedIds;
 
-  updates.attendees = normalizedIds;
+      if (normalizedIds.length > 0) {
+        const existingUsers = await User.find({ _id: { $in: normalizedIds } });
+        const existingIds = existingUsers.map((u: any) => u._id.toString());
+        console.log("Existing user IDs:", existingIds);
+        console.log(
+          "Invalid attendee IDs:",
+          normalizedIds.filter((id) => !existingIds.includes(id))
+        );
 
-  if (normalizedIds.length > 0) {
-    const existingUsers = await User.find({ _id: { $in: normalizedIds } });
-    const existingIds = existingUsers.map((u: any) => u._id.toString());
-    console.log("Existing user IDs:", existingIds);
-    console.log(
-      "Invalid attendee IDs:",
-      normalizedIds.filter((id) => !existingIds.includes(id))
-    );
-
-    if (existingUsers.length !== normalizedIds.length) {
-      return res.status(400).json({
-        success: false,
-        message: "One or more attendees not found",
-      });
+        if (existingUsers.length !== normalizedIds.length) {
+          return res.status(400).json({
+            success: false,
+            message: "One or more attendees not found",
+          });
+        }
+      }
     }
-  }
-}
 
     Object.assign(meeting, updates);
     await meeting.save();
@@ -346,6 +328,7 @@ export const deleteMeeting = async (req: Request, res: Response) => {
     }
 
     const meeting = await Meeting.findById(id);
+
     if (!meeting) {
       return res.status(404).json({ success: false, message: "Meeting not found" });
     }

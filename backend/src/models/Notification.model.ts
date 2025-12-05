@@ -2,16 +2,19 @@ import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface INotification extends Document {
   userId: Types.ObjectId;
-  type: string;
+  type: 'team' | 'project' | 'task' | 'subtask' | 'meeting' | 'chat' | 'message' | 'system';
+  action?: 'created' | 'updated' | 'deleted' | 'assigned' | 'commented' | 'mentioned' | 'completed';
   title: string;
   message: string;
-  data?: {
-    entityId?: string;
-    entityType?: string;
-    status?: string;
-    organizerId?: string;
-    organizerName?: string;
+  read: boolean;
+  readAt?: Date;
+  relatedEntity?: {
+    entityType: string;
+    entityId: string;
   };
+  icon?: string;
+  color?: string;
+  actionUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,11 +25,17 @@ const notificationSchema = new Schema<INotification>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      index: true,
     },
     type: {
       type: String,
       required: true,
-      enum: ['meeting', 'task', 'project', 'system', 'chat'], // add more if needed
+      enum: ['team', 'project', 'task', 'subtask', 'meeting', 'chat', 'message', 'system'],
+      index: true,
+    },
+    action: {
+      type: String,
+      enum: ['created', 'updated', 'deleted', 'assigned', 'commented', 'mentioned', 'completed'],
     },
     title: {
       type: String,
@@ -38,18 +47,29 @@ const notificationSchema = new Schema<INotification>(
       required: true,
       trim: true,
     },
-    data: {
-      entityId: { type: String },
-      entityType: { type: String },
-      status: { type: String },
-      organizerId: { type: String },
-      organizerName: { type: String },
+    read: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
+    readAt: {
+      type: Date,
+      default: null,
+    },
+    relatedEntity: {
+      entityType: String,
+      entityId: String,
+    },
+    icon: String,
+    color: String,
+    actionUrl: String,
   },
   { timestamps: true }
 );
 
-export default mongoose.model<INotification>(
-  'Notification',
-  notificationSchema
-);
+// Indexes for optimization
+notificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, createdAt: -1 });
+notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 }); // 90 days TTL
+
+export default mongoose.model<INotification>('Notification', notificationSchema);
