@@ -1,127 +1,124 @@
 // src/context/NotificationContext.tsx
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-} from 'react';
-import { useAuth } from './AuthContext';
-import notificationsService from '../services/notifications.service';
-import { Notification } from '../types/notifications.types';
+import { createContext, useState, useCallback, useEffect, useContext, ReactNode } from 'react';
+import { notificationService } from '../services/notifications.service';
+import { useSocket } from '../hooks/useSocket';
+
+interface Notification {
+  id: string;
+  _id?: string;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  createdAt: string;
+}
 
 interface NotificationContextType {
   notifications: Notification[];
-  unreadCount: number;
+  unread: number;
   loading: boolean;
-  fetchNotifications: () => Promise<void>;
+  loadNotifications: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
-  clearNotifications: () => void;
+  addNotification: (notification: Notification) => void;
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(
-  undefined
-);
+export const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const { isAuthenticated } = useAuth();
+export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
+  const { socket, isConnected } = useSocket();
 
-  const computeUnread = (items: Notification[]) =>
-    items.filter((n) => !n.read).length;
-
-  const fetchNotifications = useCallback(async () => {
-    if (!isAuthenticated) return;
+  const loadNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await notificationsService.getNotifications();
-      setNotifications(data);
-      setUnreadCount(computeUnread(data));
-    } catch (error) {
-      console.error('Error fetching notifications', error);
+      const response = await notificationService.getNotifications(20, 0);
+      setNotifications(response.data.notifications || []);
+      setUnread(response.data.unread || 0);
+    } catch (err) {
+      console.error('Error loading notifications', err);
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    if (socket && isConnected) {
+      socket.on('notification', (notification: Notification) => {
+        setNotifications(prev => [notification, ...prev]);
+        setUnread(prev => prev + 1);
+      });
+      return () => {
+        if (socket) {
+          socket.off('notification');
+        }
+      };
+    }
+  }, [socket, isConnected]);
 
   const markAsRead = useCallback(async (id: string) => {
     try {
-      const ok = await notificationsService.markAsRead(id);
-      if (!ok) return;
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Error marking notification as read', error);
+      await notificationService.markAsRead(id);
+      setNotifications(prev => prev.map(n => 
+        (n.id === id || n._id === id) ? { ...n, read: true } : n
+      ));
+      setUnread(prev => Math.max(prev - 1, 0));
+    } catch (err) {
+      console.error('Error marking notification as read', err);
     }
   }, []);
 
   const markAllAsRead = useCallback(async () => {
     try {
-      const ok = await notificationsService.markAllAsRead();
-      if (!ok) return;
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      setUnreadCount(0);
-    } catch (error) {
-      console.error('Error marking all as read', error);
+      await notificationService.markAllAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnread(0);
+    } catch (err) {
+      console.error('Error marking all notifications as read', err);
     }
   }, []);
 
   const deleteNotification = useCallback(async (id: string) => {
     try {
-      const ok = await notificationsService.deleteNotification(id);
-      if (!ok) return;
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Error deleting notification', error);
+      await notificationService.deleteNotification(id);
+      setNotifications(prev => prev.filter(n => n.id !== id && n._id !== id));
+    } catch (err) {
+      console.error('Error deleting notification', err);
     }
   }, []);
 
-  const clearNotifications = useCallback(() => {
-    setNotifications([]);
-    setUnreadCount(0);
+  const addNotification = useCallback((notification: Notification) => {
+    setNotifications(prev => [notification, ...prev]);
+    setUnread(prev => prev + 1);
   }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      clearNotifications();
-      return;
-    }
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000); // 10s polling
-    return () => clearInterval(interval);
-  }, [isAuthenticated, fetchNotifications, clearNotifications]);
 
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        loading,
-        fetchNotifications,
-        markAsRead,
-        markAllAsRead,
-        deleteNotification,
-        clearNotifications,
-      }}
-    >
+    <NotificationContext.Provider value={{
+      notifications,
+      unread,
+      loading,
+      loadNotifications,
+      markAsRead,
+      markAllAsRead,
+      deleteNotification,
+      addNotification,
+    }}>
       {children}
     </NotificationContext.Provider>
   );
-};
+}
 
-export const useNotifications = (): NotificationContextType => {
-  const ctx = useContext(NotificationContext);
-  if (!ctx) {
+export function useNotifications() {
+  const context = useContext(NotificationContext);
+  if (!context) {
     throw new Error('useNotifications must be used within NotificationProvider');
   }
-  return ctx;
-};
+  return context;
+}

@@ -1,5 +1,5 @@
-import React from 'react';
-import { DashboardWidget } from '../../types/dashboard.types';
+import React from "react";
+import { DashboardWidget } from "../../types/dashboard.types";
 
 interface QuickStatsProps {
   widgets: DashboardWidget[];
@@ -8,11 +8,11 @@ interface QuickStatsProps {
 const QuickStats: React.FC<QuickStatsProps> = ({ widgets }) => {
   const getColorClass = (color: string) => {
     const map: Record<string, string> = {
-      blue: 'bg-blue-500',
-      green: 'bg-green-500',
-      purple: 'bg-purple-500',
-      orange: 'bg-orange-500',
-      red: 'bg-red-500',
+      blue: "bg-blue-500",
+      green: "bg-green-500",
+      purple: "bg-purple-500",
+      orange: "bg-orange-500",
+      red: "bg-red-500",
     };
     return map[color] || map.blue;
   };
@@ -33,8 +33,9 @@ const QuickStats: React.FC<QuickStatsProps> = ({ widgets }) => {
               +{w.trend}% this month
             </p>
           )}
-          <div className="mt-3 h-1.5 w-16 rounded-full" style={{}} />
-          <div className={`mt-3 h-1.5 w-16 rounded-full ${getColorClass(w.color)}`} />
+          <div
+            className={`mt-3 h-1.5 w-16 rounded-full ${getColorClass(w.color)}`}
+          />
         </div>
       ))}
     </div>

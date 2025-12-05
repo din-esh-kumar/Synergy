@@ -17,6 +17,7 @@ const Login: React.FC = () => {
     setError('');
     try {
       const response = await api.post('/auth/login', form);
+      console.log("Auth response in login page",response);
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
 

@@ -1,3 +1,4 @@
+// src/models/Team.model.ts
 import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface ITeam extends Document {
@@ -12,7 +13,7 @@ export interface ITeam extends Document {
   updatedAt: Date;
 }
 
-const TeamSchema = new Schema<ITeam>(
+const TeamSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },

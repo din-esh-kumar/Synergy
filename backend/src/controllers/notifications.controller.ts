@@ -1,96 +1,78 @@
-import { Request, Response, NextFunction } from 'express';
-import { Notification } from '../config/Notification.model';  // or default import based on your file
+import { Request, Response } from 'express';
+import Notification from '../models/Notification.model';
+import { markNotificationAsRead, markAllNotificationsAsRead } from '../utils/notificationEngine';
 
-const getAuthUserId = (req: Request): string | undefined => {
-  const u = (req as any).user;
-  if (!u) return undefined;
-  return u._id?.toString?.() || u.id || u.userId;
-};
-
-export const getNotifications = async (req: Request, res: Response, next: NextFunction) => {
+export async function getNotifications(req: Request, res: Response) {
   try {
-    const userId = getAuthUserId(req);
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
+    const userId = (req as any).userId;
+    const { limit = 20, skip = 0 } = req.query;
 
     const notifications = await Notification.find({ userId })
       .sort({ createdAt: -1 })
-      .limit(100)
-      .lean();
+      .skip(Number(skip))
+      .limit(Number(limit));
 
-    res.json({ success: true, notifications });
-  } catch (err) {
-    next(err);
+    const total = await Notification.countDocuments({ userId });
+    const unread = await Notification.countDocuments({ userId, read: false });
+
+    res.json({
+      notifications,
+      total,
+      unread,
+      limit: Number(limit),
+      skip: Number(skip),
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
   }
-};
+}
 
-export const getUnreadCount = async (req: Request, res: Response, next: NextFunction) => {
+export async function markAsRead(req: Request, res: Response) {
   try {
-    const userId = getAuthUserId(req);
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
+    const { notificationId } = req.params;
 
-    const count = await Notification.countDocuments({ userId, read: false });
-    res.json({ success: true, count });
-  } catch (err) {
-    next(err);
+    const notification = await markNotificationAsRead(notificationId);
+
+    res.json(notification);
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ error: 'Failed to mark notification as read' });
   }
-};
+}
 
-export const markNotificationAsRead = async (req: Request, res: Response, next: NextFunction) => {
+export async function markAllAsRead(req: Request, res: Response) {
   try {
-    const userId = getAuthUserId(req);
-    const { id } = req.params;
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
+    const userId = (req as any).userId;
 
-    const result = await Notification.updateOne(
-      { _id: id, userId },
-      { $set: { read: true } }
-    );
+    await markAllNotificationsAsRead(userId);
 
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ success: false, message: 'Notification not found' });
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
+    res.json({ success: true, message: 'All notifications marked as read' });
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    res.status(500).json({ error: 'Failed to mark all notifications as read' });
   }
-};
+}
 
-export const markAllNotificationsAsRead = async (req: Request, res: Response, next: NextFunction) => {
+export async function deleteNotification(req: Request, res: Response) {
   try {
-    const userId = getAuthUserId(req);
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const { notificationId } = req.params;
+    const userId = (req as any).userId;
+
+    const notification = await Notification.findById(notificationId);
+    if (!notification) {
+      return res.status(404).json({ error: 'Notification not found' });
     }
 
-    await Notification.updateMany({ userId, read: false }, { $set: { read: true } });
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
+    if (notification.userId.toString() !== userId) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    await Notification.findByIdAndDelete(notificationId);
+
+    res.json({ success: true, message: 'Notification deleted' });
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    res.status(500).json({ error: 'Failed to delete notification' });
   }
-};
-
-export const deleteNotification = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = getAuthUserId(req);
-    const { id } = req.params;
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
-
-    const result = await Notification.deleteOne({ _id: id, userId });
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ success: false, message: 'Notification not found' });
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-};
+}

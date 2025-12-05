@@ -30,6 +30,7 @@ export interface Team {
   updatedAt: string;
 }
 
+
 export interface CreateTeamPayload {
   name: string;
   description?: string;

@@ -14,7 +14,7 @@ app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true,
 }));
-
+app.use('/uploads', express.static('uploads'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -28,7 +28,10 @@ import dashboardRoutes from './routes/dashboard.routes';
 import teamRoutes from './routes/teams.routes';
 import issueRoutes from './routes/issue.routes';
 import notificationsRoutes from './routes/notifications.routes';
-
+import chatRoutes from './routes/chat.routes';
+import documentRoutes from './routes/document.routes';
+import notificationRoutes from './routes/notifications.routes';
+import settingsRoutes from './routes/settings.routes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/meetings', meetingsRoutes);
@@ -39,7 +42,10 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/issues', issueRoutes);
 app.use('/api/notifications', notificationsRoutes);
-
+app.use('/api/chat', chatRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/settings', settingsRoutes);
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({

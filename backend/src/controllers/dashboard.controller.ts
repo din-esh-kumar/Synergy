@@ -1,11 +1,11 @@
 // backend/src/controllers/dashboard.controller.ts
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import User from '../config/User.model';
-import ProjectModel, { IProject } from '../config/Project.model';
-import TaskModel, { ITask } from '../config/Task.model';
-import Meeting from '../config/Meeting.model';
-import { Issue as IssueModel } from '../config/Issue.model';
+import User from '../models/User.model';
+import ProjectModel, { IProject } from '../models/Project.model';
+import TaskModel, { ITask } from '../models/Task.model';
+import Meeting from '../models/Meeting.model';
+import IssueModel from '../models/Issue.model';
 
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {

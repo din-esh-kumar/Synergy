@@ -1,4 +1,4 @@
-// src/components/NotificationBell.tsx
+// src/components/Notifications/NotificationBell.tsx
 import React, { useState } from 'react';
 import { Bell, X, Check, CheckCircle, Trash2 } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
@@ -6,17 +6,19 @@ import { useNotifications } from '../../context/NotificationContext';
 const NotificationBell: React.FC = () => {
   const {
     notifications,
-    unreadCount,
+    unread,
     markAsRead,
     markAllAsRead,
     deleteNotification,
   } = useNotifications();
+
   const [open, setOpen] = useState(false);
 
-  const unreadLabel = unreadCount > 9 ? '9+' : unreadCount.toString();
+  const unreadLabel = unread > 9 ? '9+' : unread.toString();
 
   return (
     <div className="relative">
+      {/* Bell Icon */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -24,25 +26,24 @@ const NotificationBell: React.FC = () => {
         title="Notifications"
       >
         <Bell size={20} className="text-gray-300" />
-        {unreadCount > 0 && (
+        {unread > 0 && (
           <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
             {unreadLabel}
           </span>
         )}
       </button>
 
+      {/* Dropdown */}
       {open && (
         <div className="absolute right-0 mt-3 w-96 max-h-96 bg-slate-800 border border-slate-700 rounded-lg shadow-lg overflow-hidden z-50">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
             <div>
               <p className="font-semibold text-sm">Notifications</p>
-              <p className="text-xs text-gray-400">
-                {unreadCount} unread
-              </p>
+              <p className="text-xs text-gray-400">{unread} unread</p>
             </div>
             <div className="flex items-center gap-2">
-              {unreadCount > 0 && (
+              {unread > 0 && (
                 <button
                   type="button"
                   onClick={markAllAsRead}
@@ -62,7 +63,7 @@ const NotificationBell: React.FC = () => {
             </div>
           </div>
 
-          {/* List */}
+          {/* Notifications List */}
           <div className="max-h-72 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="px-4 py-10 text-center text-gray-400 text-sm">
@@ -73,7 +74,7 @@ const NotificationBell: React.FC = () => {
               <ul className="divide-y divide-slate-700/70">
                 {notifications.map((n) => (
                   <li
-                    key={n.id}
+                    key={n._id}
                     className={`px-4 py-3 text-sm ${
                       n.read ? 'bg-slate-800' : 'bg-slate-700/60'
                     }`}
@@ -81,9 +82,7 @@ const NotificationBell: React.FC = () => {
                     <div className="flex justify-between gap-2">
                       <div className="flex-1">
                         <p className="font-medium">{n.title}</p>
-                        <p className="text-xs text-gray-300 mt-1">
-                          {n.message}
-                        </p>
+                        <p className="text-xs text-gray-300 mt-1">{n.message}</p>
                         <p className="text-[11px] text-gray-500 mt-1">
                           {new Date(n.createdAt).toLocaleString()}
                         </p>
