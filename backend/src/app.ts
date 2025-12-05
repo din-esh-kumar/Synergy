@@ -82,6 +82,21 @@ app.use(
   },
 );
 
+
+// TEMP TEST ROUTE - add to app.ts
+app.get('/test-socket', (req, res) => {
+  const { getIOInstance } = require('./utils/socketEmitter');
+  const io = getIOInstance();
+  if (io) {
+    io.emit('test-broadcast', { message: 'Socket working!' });
+    res.json({ success: true, message: 'Broadcast sent' });
+  } else {
+    res.status(500).json({ error: 'Socket not initialized' });
+  }
+});
+
+
+
 // 404 handler (placed AFTER routes, BEFORE export)
 app.use((req: Request, res: Response) => {
   res.status(404).json({
