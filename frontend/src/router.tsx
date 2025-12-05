@@ -13,13 +13,12 @@ import ProjectsHome from './pages/projects/ProjectsHome';
 import AdminUsers from './pages/admin/AdminUsers';
 import TeamsHome from './pages/team/TeamsHome';
 import { IssueList } from './pages/Issues/IssueList';
-
-// NEW IMPORTS
 import SettingsPage from './pages/Settings/SettingsHome';
 import MessagesPage from './pages/chat/MessagesPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 
 export const router = createBrowserRouter([
+  // Public
   {
     path: '/login',
     element: <Login />,
@@ -28,6 +27,8 @@ export const router = createBrowserRouter([
     path: '/register',
     element: <Register />,
   },
+
+  // Protected app shell
   {
     path: '/',
     element: (
@@ -48,15 +49,10 @@ export const router = createBrowserRouter([
       { path: '/messages', element: <MessagesPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
       { path: '/', element: <Navigate to="/dashboard" replace /> },
-    ].map((route) => ({
-      ...route,
-      element: (
-        <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'EMPLOYEE']}>
-          {route.element}
-        </ProtectedRoute>
-      ),
-    })),
+    ],
   },
+
+  // Fallback
   {
     path: '*',
     element: <Navigate to="/dashboard" replace />,

@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
 import api from '../services/api';
 import { showToast } from '../components/common/Toast';
 import { User } from '../types/meetings.types';
@@ -8,15 +14,20 @@ interface AuthContextType {
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  register: (name: string, email: string, password: string, role: string) => Promise<void>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    role: string,
+  ) => Promise<void>;
   isAuthenticated: boolean;
   refreshUser: () => Promise<void>;
-  loading: boolean;            // ✅ add this
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (storedToken && storedUser) {
       try {
-        const parsedUser = JSON.parse(storedUser);
+        const parsedUser: User = JSON.parse(storedUser);
         setToken(storedToken);
         setUser(parsedUser);
         api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
@@ -45,10 +56,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       if (token) {
         const response = await api.get('/auth/me');
-        const userData = response.data?.user;
+        const userData: User | undefined = response.data?.user;
         if (userData) {
           setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData)); // Persist updated user
+          localStorage.setItem('user', JSON.stringify(userData));
         }
       }
     } catch (error) {
@@ -61,10 +72,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await api.post('/auth/login', { email, password });
       const { user: userData, token: authToken } = response.data;
 
-      // Ensure role is correctly saved
-      const userWithRole = {
+      const userWithRole: User = {
         ...userData,
-        role: userData.role.toUpperCase(), // Normalize role
+        role: userData.role.toUpperCase(),
       };
 
       localStorage.setItem('token', authToken);
@@ -91,12 +101,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     showToast.success('Logged out successfully');
   };
 
-  const register = async (name: string, email: string, password: string, role: string) => {
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    role: string,
+  ) => {
     try {
-      const response = await api.post('/auth/register', { name, email, password, role });
+      const response = await api.post('/auth/register', {
+        name,
+        email,
+        password,
+        role,
+      });
       const { user: userData, token: authToken } = response.data;
 
-      const userWithRole = {
+      const userWithRole: User = {
         ...userData,
         role: userData.role.toUpperCase(),
       };
@@ -117,24 +137,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-  <AuthContext.Provider
-    value={{
-      user,
-      token,
-      login,
-      logout,
-      register,
-      isAuthenticated: !!token,
-      refreshUser,
-      loading,          // ✅ expose the state
-    }}
-  >
-    {children}
-  </AuthContext.Provider>
-);
-}; 
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        login,
+        logout,
+        register,
+        isAuthenticated: !!token && !!user,
+        refreshUser,
+        loading,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within AuthProvider');

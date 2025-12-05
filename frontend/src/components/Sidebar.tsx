@@ -21,7 +21,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
-  const { unread } = useNotifications();
+  const { unreadCount } = useNotifications();
   const location = useLocation();
 
   const menuItems = [
@@ -101,9 +101,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             >
               <Bell size={20} />
               <span className="font-medium">Notifications</span>
-              {unread > 0 && (
+              {unreadCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center">
-                  {unread > 99 ? '99+' : unread}
+                  {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
             </Link>
