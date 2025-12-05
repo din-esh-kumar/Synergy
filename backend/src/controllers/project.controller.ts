@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import Project from '../config/Project.model';
-import User from '../config/User.model';
+import Project from '../models/Project.model';
+import User from '../models/User.model';
 
 // Create Project
 // Create Project

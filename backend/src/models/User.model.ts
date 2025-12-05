@@ -9,6 +9,7 @@ export interface IUser extends Document {
   phone?: string;
   designation?: string;
   status: boolean;           // active / inactive
+  avatar?: string;           // URL of profile picture
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,6 +48,10 @@ const userSchema = new Schema<IUser>(
     status: {
       type: Boolean,
       default: true,
+    },
+    avatar: {
+      type: String,
+      default: '',
     },
   },
   { timestamps: true }

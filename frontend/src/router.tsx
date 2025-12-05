@@ -1,7 +1,7 @@
+// src/router.tsx
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
-
 
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
@@ -13,6 +13,11 @@ import ProjectsHome from './pages/projects/ProjectsHome';
 import AdminUsers from './pages/admin/AdminUsers';
 import TeamsHome from './pages/team/TeamsHome';
 import { IssueList } from './pages/Issues/IssueList';
+
+// NEW IMPORTS
+import SettingsPage from './pages/Settings/SettingsHome';
+import MessagesPage from './pages/chat/MessagesPage';
+import NotificationsPage from './pages/notifications/NotificationsPage';
 
 export const router = createBrowserRouter([
   {
@@ -31,77 +36,26 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      {
-        path: '/dashboard',
-        element: (
-          <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'EMPLOYEE']}>
-            <Dashboard />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: '/meetings',
-        element: (
-          <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'EMPLOYEE']}>
-            <MeetingsHome />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: '/meetings/:id',
-        element: (
-          <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'EMPLOYEE']}>
-            <MeetingDetails />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: '/tasks',
-        element: (
-          <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'EMPLOYEE']}>
-            <TasksHome />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: '/projects',
-        element: (
-          <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
-            <ProjectsHome />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: '/admin/users',
-        element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
-            <AdminUsers />
-          </ProtectedRoute>
-        ),
-      },
-      // NEW: Teams
-      {
-  path: '/teams',
-  element: (
-    <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
-      <TeamsHome />
-    </ProtectedRoute>
-  ),
-},
-      // NEW: Issues
-      {
-        path: '/issues',
-        element: (
-          <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'EMPLOYEE']}>
-            <IssueList />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: '/',
-        element: <Navigate to="/dashboard" replace />,
-      },
-    ],
+      { path: '/dashboard', element: <Dashboard /> },
+      { path: '/meetings', element: <MeetingsHome /> },
+      { path: '/meetings/:id', element: <MeetingDetails /> },
+      { path: '/tasks', element: <TasksHome /> },
+      { path: '/projects', element: <ProjectsHome /> },
+      { path: '/admin/users', element: <AdminUsers /> },
+      { path: '/teams', element: <TeamsHome /> },
+      { path: '/issues', element: <IssueList /> },
+      { path: '/settings', element: <SettingsPage /> },
+      { path: '/messages', element: <MessagesPage /> },
+      { path: '/notifications', element: <NotificationsPage /> },
+      { path: '/', element: <Navigate to="/dashboard" replace /> },
+    ].map((route) => ({
+      ...route,
+      element: (
+        <ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'EMPLOYEE']}>
+          {route.element}
+        </ProtectedRoute>
+      ),
+    })),
   },
   {
     path: '*',

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import User from '../config/User.model';
+import User from '../models/User.model';
 
 // Create User (Admin Only)
 export const createUser = async (req: Request, res: Response) => {

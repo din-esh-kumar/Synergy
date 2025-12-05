@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Meeting, CreateMeetingPayload } from '../../types/meetings.types';
-import { Trash2 } from 'lucide-react';
-import userService from '../../services/user.service';
+import React, { useState, useEffect } from "react";
+import { Meeting, CreateMeetingPayload } from "../../types/meetings.types";
+import { Trash2 } from "lucide-react";
+import userService from "../../services/user.service";
 
 interface Props {
   meeting?: Meeting | null;
@@ -20,7 +20,7 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
   const initialInvited: (string | any)[] = meeting?.invitedUsers || [];
 
   const initialInvitedIds: string[] = initialInvited.map((u: any) =>
-    typeof u === 'string' ? u : u._id
+    typeof u === "string" ? u : u._id
   );
 
   const [selectedUsers, setSelectedUsers] = useState<string[]>(
@@ -31,9 +31,9 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
     meeting
       ? {
           title: meeting.title,
-          description: meeting.description || '',
-          location: meeting.location || '',
-          joinLink: meeting.joinLink || '',
+          description: meeting.description || "",
+          location: meeting.location || "",
+          joinLink: meeting.joinLink || "",
           startTime: meeting.startTime,
           endTime: meeting.endTime,
           attendees: initialAttendees.length ? initialAttendees : initialInvitedIds,
@@ -42,10 +42,10 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
           organiserName: meeting.organiserName,
         }
       : {
-          title: '',
-          description: '',
-          location: '',
-          joinLink: '',
+          title: "",
+          description: "",
+          location: "",
+          joinLink: "",
           startTime: new Date().toISOString().slice(0, 16),
           endTime: new Date(Date.now() + 60 * 60 * 1000)
             .toISOString()
@@ -63,7 +63,7 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
         const response = await userService.getAllUsers();
         setAllUsers(response || []);
       } catch (error) {
-        console.error('Error fetching users:', error);
+        console.error("Error fetching users:", error);
       }
     };
     fetchUsers();
@@ -95,23 +95,28 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
     e.preventDefault();
 
     if (!formData.title.trim()) {
-      alert('Title is required');
+      alert("Title is required");
       return;
     }
     if (!formData.startTime || !formData.endTime) {
-      alert('Start and End time are required');
+      alert("Start and End time are required");
       return;
     }
 
-    // Final payload: force attendees & invitedUsers to be string[]
+    // Normalize attendees/invitedUsers -> string[] of valid IDs
+    const normalizeIds = (list: any[] | undefined) =>
+      (list || [])
+        .map((item: any) =>
+          typeof item === "string" ? item : item?._id
+        )
+        .filter(
+          (id: any) => typeof id === "string" && id.trim().length > 0
+        );
+
     const payload: CreateMeetingPayload = {
       ...formData,
-      attendees: (formData.attendees || []).map((a: any) =>
-        typeof a === 'string' ? a : a._id
-      ),
-      invitedUsers: (formData.invitedUsers || []).map((u: any) =>
-        typeof u === 'string' ? u : u._id
-      ),
+      attendees: normalizeIds(formData.attendees as any),
+      invitedUsers: normalizeIds(formData.invitedUsers as any),
     };
 
     onSubmit(payload);
@@ -125,7 +130,7 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Title */}
       <div>
-        <label className="block text-sm font-medium mb-1">
+        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">
           Meeting Title <span className="text-red-500">*</span>
         </label>
         <input
@@ -142,9 +147,11 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
 
       {/* Description */}
       <div>
-        <label className="block text-sm font-medium mb-1">Description</label>
+        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">
+          Description
+        </label>
         <textarea
-          value={formData.description || ''}
+          value={formData.description || ""}
           onChange={(e) =>
             setFormData((prev) => ({ ...prev, description: e.target.value }))
           }
@@ -156,10 +163,12 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
 
       {/* Location */}
       <div>
-        <label className="block text-sm font-medium mb-1">Location</label>
+        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">
+          Location
+        </label>
         <input
           type="text"
-          value={formData.location || ''}
+          value={formData.location || ""}
           onChange={(e) =>
             setFormData((prev) => ({ ...prev, location: e.target.value }))
           }
@@ -170,12 +179,12 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
 
       {/* Join link */}
       <div>
-        <label className="block text-sm font-medium mb-1">
+        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">
           Join Link (video)
         </label>
         <input
           type="url"
-          value={formData.joinLink || ''}
+          value={formData.joinLink || ""}
           onChange={(e) =>
             setFormData((prev) => ({ ...prev, joinLink: e.target.value }))
           }
@@ -187,7 +196,7 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
       {/* Start / End */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium mb-1">
+          <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">
             Start Time <span className="text-red-500">*</span>
           </label>
           <input
@@ -201,7 +210,7 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">
+          <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">
             End Time <span className="text-red-500">*</span>
           </label>
           <input
@@ -218,14 +227,14 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
 
       {/* Invite attendees */}
       <div>
-        <label className="block text-sm font-medium mb-1">
+        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">
           Invite Attendees
         </label>
         <select
           onChange={(e) => {
             if (e.target.value) {
               handleAddAttendee(e.target.value);
-              e.target.value = '';
+              e.target.value = "";
             }
           }}
           className="w-full px-4 py-2.5 bg-white text-slate-900 dark:bg-slate-700 dark:text-white border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
@@ -242,7 +251,7 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
 
         {selectedUserDetails.length > 0 && (
           <div className="mt-3 space-y-2">
-            <p className="text-sm text-slate-600 dark:text-slate-300">
+            <p className="text-sm text-slate-700 dark:text-slate-300">
               Invited Attendees ({selectedUserDetails.length})
             </p>
             <div className="flex flex-wrap gap-2">
@@ -279,7 +288,7 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
           type="submit"
           className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-semibold shadow-sm"
         >
-          {meeting ? 'Update Meeting' : 'Create Meeting'}
+          {meeting ? "Update Meeting" : "Create Meeting"}
         </button>
       </div>
     </form>

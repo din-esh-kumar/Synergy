@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import Task from '../config/Task.model';
-import User from '../config/User.model';
+import Task from '../models/Task.model';
+import User from '../models/User.model';
 
 // Create Task
 export const createTask = async (req: Request, res: Response) => {

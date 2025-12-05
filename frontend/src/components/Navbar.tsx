@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Settings, Moon, Sun, Menu } from 'lucide-react';
-import NotificationBell from './notifications/NotificationBell';
+import NotificationBell from './Notifications/NotificationBell';
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -10,8 +10,15 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme(); // updated
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // Custom toggle for light/dark
+  const handleToggleTheme = () => {
+    if (theme === 'light') setTheme('dark');
+    else if (theme === 'dark') setTheme('light');
+    else setTheme('dark'); // default for 'auto'
+  };
 
   return (
     <nav className="bg-white text-slate-900 dark:bg-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
@@ -32,7 +39,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
 
         {/* Theme Toggle */}
         <button
-          onClick={toggleTheme}
+          onClick={handleToggleTheme} // updated
           className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
         >

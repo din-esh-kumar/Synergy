@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import Issue, { IIssue } from '../config/Issue.model';
-import ProjectModel from '../config/Project.model';
-import { Team } from '../config/Team.model';
-import UserModel from '../config/User.model';
+import Issue from '../models/Issue.model';
+import ProjectModel from '../models/Project.model';
+import { Team } from '../models/Team.model';
+import UserModel from '../models/User.model';
 
 const getAuthUserId = (req: Request): string | undefined => {
   const u = (req as any).user;
@@ -76,7 +76,7 @@ export const createIssue = async (req: Request, res: Response) => {
       }
     }
 
-    const payload: Partial<IIssue> = {
+    const payload: any = {
       title,
       description,
       type: (type as any) || 'TASK',
@@ -88,7 +88,7 @@ export const createIssue = async (req: Request, res: Response) => {
       dueDate: dueDate ? new Date(dueDate) : null,
     };
 
-    const issue = await Issue.create(payload as IIssue);
+    const issue = await Issue.create(payload);
 
     res.status(201).json({
       success: true,

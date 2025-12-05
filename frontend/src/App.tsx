@@ -1,11 +1,10 @@
 // src/App.tsx
-import React from 'react';
-import { RouterProvider } from 'react-router-dom';
-import { router } from './router';
-import { AuthProvider } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
-import { NotificationProvider } from './context/NotificationContext';
-import { initializeToast } from './components/common/Toast';
+import React from "react";
+import { RouterProvider } from "react-router-dom";
+import { router } from "./router";
+import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import { initializeToast } from "./components/common/Toast";
 
 const App: React.FC = () => {
   initializeToast();
@@ -13,11 +12,9 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <NotificationProvider>
-          <div className="min-h-screen bg-slate-950 text-white">
-            <RouterProvider router={router} />
-          </div>
-        </NotificationProvider>
+        <div className="min-h-screen bg-slate-950 text-white">
+          <RouterProvider router={router} />
+        </div>
       </ThemeProvider>
     </AuthProvider>
   );

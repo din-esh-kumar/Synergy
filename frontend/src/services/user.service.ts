@@ -3,13 +3,11 @@ import api from "./api";
 import { User } from "../types/user.types";
 
 export const userService = {
-  // Get all users
+  // Admin: Get all users
   getAllUsers: async (): Promise<User[]> => {
     try {
-      // MUST match backend: /api/admin/users
       const response = await api.get("/admin/users");
       console.log("GET /admin/users response:", response.data);
-      // backend returns { success, data: users[], count } from getAllUsers.[file:26][file:22]
       return (response.data?.data || []) as User[];
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -17,7 +15,19 @@ export const userService = {
     }
   },
 
-  // Keep the rest as-is for now, or also prefix with /admin if you use them from admin screens:
+  // NEW: DM users list (safe for employees) -> backend /api/users
+  getDmUsers: async (): Promise<User[]> => {
+    try {
+      const response = await api.get("/users");
+      console.log("GET /users (dm users) response:", response.data);
+      // assume backend returns users array directly or under data
+      return (response.data?.data || response.data || []) as User[];
+    } catch (error) {
+      console.error("Error fetching DM users:", error);
+      return [];
+    }
+  },
+
   getUserById: async (id: string): Promise<User | null> => {
     try {
       const response = await api.get(`/admin/users/${id}`);
