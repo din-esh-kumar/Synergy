@@ -5,6 +5,7 @@ import { Task } from '../../types/task.types';
 interface TaskListProps {
   task: Task;
   currentUserId?: string;
+  currentUserRole?: string;
   onEdit: () => void;
   onDelete: () => void;
 }
@@ -12,18 +13,28 @@ interface TaskListProps {
 const TaskList: React.FC<TaskListProps> = ({
   task,
   currentUserId,
+  currentUserRole,
   onEdit,
   onDelete,
 }) => {
-  const assignedUser = typeof task.assignedTo === 'string' 
-    ? null 
-    : task.assignedTo;
+  const assignedUser =
+    typeof task.assignedTo === 'string' ? null : task.assignedTo;
 
-  const createdByUser = typeof task.createdBy === 'string' 
-    ? null 
-    : task.createdBy;
+  const createdByUser =
+    typeof task.createdBy === 'string' ? null : task.createdBy;
 
-  const canEdit = currentUserId === createdByUser?._id || currentUserId === assignedUser?._id;
+  const isEmployee = currentUserRole === 'EMPLOYEE';
+
+  const canEdit =
+    !isEmployee &&
+    (currentUserId === createdByUser?._id ||
+      currentUserId === assignedUser?._id);
+
+  const canDelete = !isEmployee;
+
+  // Employee can update status only if assigned to this task
+  const canUpdateStatus =
+    isEmployee && currentUserId && currentUserId === assignedUser?._id;
 
   const getPriorityColor = (priority: string) => {
     switch (priority.toUpperCase()) {
@@ -59,7 +70,11 @@ const TaskList: React.FC<TaskListProps> = ({
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <h3 className="text-lg font-semibold">{task.title}</h3>
-            <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(task.status)}`}>
+            <span
+              className={`px-2 py-1 text-xs rounded-full ${getStatusColor(
+                task.status
+              )}`}
+            >
               {task.status.replace('_', ' ')}
             </span>
           </div>
@@ -71,7 +86,11 @@ const TaskList: React.FC<TaskListProps> = ({
           )}
 
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-            <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(task.priority)}`}>
+            <span
+              className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(
+                task.priority
+              )}`}
+            >
               {task.priority}
             </span>
 
@@ -103,8 +122,8 @@ const TaskList: React.FC<TaskListProps> = ({
           </div>
         </div>
 
-        {canEdit && (
-          <div className="flex gap-2">
+        <div className="flex gap-2 items-start">
+          {canEdit && (
             <button
               onClick={onEdit}
               className="p-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 transition-colors"
@@ -112,6 +131,9 @@ const TaskList: React.FC<TaskListProps> = ({
             >
               <Edit2 size={18} />
             </button>
+          )}
+
+          {canDelete && (
             <button
               onClick={onDelete}
               className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 transition-colors"
@@ -119,8 +141,30 @@ const TaskList: React.FC<TaskListProps> = ({
             >
               <Trash2 size={18} />
             </button>
-          </div>
-        )}
+          )}
+
+          {canUpdateStatus && (
+            <button
+              onClick={onEdit}
+              className="
+                inline-flex items-center gap-1.5
+                px-5 py-1.5
+                rounded-full
+                bg-gradient-to-r from-blue-500 to-indigo-500
+                text-white text-xs font-semibold
+                shadow-[0_8px_18px_rgba(37,99,235,0.35)]
+                hover:shadow-[0_10px_22px_rgba(37,99,235,0.5)]
+                hover:from-blue-600 hover:to-indigo-600
+                active:scale-[0.97]
+                transition-all duration-200
+                border border-white/50
+              "
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 shadow-[0_0_0_4px_rgba(16,185,129,0.35)]" />
+              <span>Update Status</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {task.comments && task.comments.length > 0 && (

@@ -52,10 +52,13 @@ interface ChatContextType {
   addMessage: (message: ChatMessage) => void;
 }
 
-const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 const getId = (o: { id?: string; _id?: string } | null | undefined) =>
   o?.id ?? o?._id ?? '';
+
+export const ChatContext = createContext<ChatContextType | undefined>(undefined);
+
+
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);

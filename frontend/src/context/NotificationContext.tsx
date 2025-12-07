@@ -63,9 +63,10 @@ export interface NotificationContextType {
   addNotification: (notification: Notification) => void;
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(
+export const NotificationContext = createContext<NotificationContextType | undefined>(
   undefined,
 );
+
 
 // Vite env vars
 const API_BASE_URL =

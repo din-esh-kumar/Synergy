@@ -57,7 +57,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuToggle }) => {
             <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-400 rounded-lg flex items-center justify-center text-white font-bold">
               S
             </div>
-            <span>Synergy</span>
+            <span>WorkHub</span>
           </Link>
 
           {/* Center Navigation */}

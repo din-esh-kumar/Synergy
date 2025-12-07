@@ -7,8 +7,11 @@ import { User } from "../../types/user.types";
 
 import { TeamService } from "../../services/team.service";
 import { Team, CreateTeamPayload } from "../../types/team.types";
-import TeamForm from "./TeamForm";
+import TeamForm, { TeamFormValues } from "./TeamForm";
 import TeamList from "./TeamList";
+
+import projectsService from "../../services/projects.service";
+import { Project } from "../../types/project.types";
 
 const TeamsHome: React.FC = () => {
   const { user } = useAuth();
@@ -16,6 +19,7 @@ const TeamsHome: React.FC = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [filteredTeams, setFilteredTeams] = useState<Team[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [search, setSearch] = useState("");
@@ -47,10 +51,21 @@ const TeamsHome: React.FC = () => {
     }
   }, []);
 
+  const fetchProjects = useCallback(async () => {
+    try {
+      const list = await projectsService.getProjects();
+      setProjects(list);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      showToast.error("Failed to load projects for teams");
+    }
+  }, []);
+
   useEffect(() => {
     fetchTeams();
     fetchUsers();
-  }, [fetchTeams, fetchUsers]);
+    fetchProjects();
+  }, [fetchTeams, fetchUsers, fetchProjects]);
 
   useEffect(() => {
     let filtered = [...teams];
@@ -65,41 +80,32 @@ const TeamsHome: React.FC = () => {
     setFilteredTeams(filtered);
   }, [teams, search]);
 
-  const handleCreateTeam = async (data: {
-  name: string;
-  description?: string;
-  lead: string;
-  memberIds: string[];
-}) => {
-  const payload: CreateTeamPayload = {
-    name: data.name,
-    description: data.description ?? "",
-    leadId: data.lead || null,
-    memberIds: data.memberIds,
+  const handleCreateTeam = async (data: TeamFormValues) => {
+    const payload: CreateTeamPayload = {
+      name: data.name,
+      description: data.description ?? "",
+      leadId: data.lead || null,
+      memberIds: data.memberIds,
+      projectId: data.projectId || null,
+    };
+
+    try {
+      console.log("CreateTeam payload:", payload);
+      const created = await TeamService.createTeam(payload);
+      console.log("CreateTeam response:", created);
+      showToast.success("Team created successfully! 🚀");
+      setShowForm(false);
+      setEditingTeam(null);
+      await fetchTeams();
+    } catch (error: any) {
+      console.error("Error creating team:", error?.response?.data || error);
+      showToast.error(
+        error?.response?.data?.message || "Failed to create team"
+      );
+    }
   };
 
-  try {
-    console.log("CreateTeam payload:", payload);
-    const created = await TeamService.createTeam(payload);
-    console.log("CreateTeam response:", created);
-    showToast.success("Team created successfully! 🚀");
-    setShowForm(false);
-    setEditingTeam(null);
-    await fetchTeams();
-  } catch (error: any) {
-    console.error("Error creating team:", error?.response?.data || error);
-    showToast.error(
-      error?.response?.data?.message || "Failed to create team"
-    );
-  }
-};
-
-  const handleUpdateTeam = async (data: {
-    name: string;
-    description?: string;
-    lead: string;
-    memberIds: string[];
-  }) => {
+  const handleUpdateTeam = async (data: TeamFormValues) => {
     if (!editingTeam?._id) return;
 
     const payload: CreateTeamPayload = {
@@ -107,6 +113,7 @@ const TeamsHome: React.FC = () => {
       description: data.description ?? "",
       leadId: data.lead || null,
       memberIds: data.memberIds,
+      projectId: data.projectId || null,
     };
 
     try {
@@ -172,13 +179,23 @@ const TeamsHome: React.FC = () => {
                 ? {
                     name: editingTeam.name,
                     description: editingTeam.description,
-                    lead: editingTeam.lead?._id || "",
+                    lead:
+                      (editingTeam.lead as any)?._id ||
+                      (editingTeam.lead as any) ||
+                      "",
                     memberIds:
-                      editingTeam.members?.map((m: any) => m._id) || [],
+                      editingTeam.members?.map((m: any) =>
+                        typeof m === "string" ? m : m._id
+                      ) || [],
+                    projectId:
+                      (editingTeam as any).project?._id ||
+                      (editingTeam as any).projectId ||
+                      "",
                   }
                 : undefined
             }
             users={users}
+            projects={projects}
             onSubmit={editingTeam ? handleUpdateTeam : handleCreateTeam}
             onCancel={() => {
               setShowForm(false);

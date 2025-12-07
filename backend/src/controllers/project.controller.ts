@@ -1,12 +1,19 @@
+// src/controllers/project.controller.ts
+
 import { Request, Response } from 'express';
 import Project from '../models/Project.model';
 import User from '../models/User.model';
-import Notification from '../models/Notification.model';
+import { emitToRoom } from '../utils/socketEmitter';
+import {
+  createNotification,
+  notifyProject,
+} from '../utils/notificationEngine';
 
-// Create Project
+// ============ CREATE PROJECT ============
 export const createProject = async (req: Request, res: Response) => {
   try {
-    const { name, description, startDate, endDate, visibility, team } = req.body;
+    const { name, description, startDate, endDate, visibility, team } =
+      req.body;
     const userId = (req as any).user._id;
     const userRole = (req as any).user.role;
     const userName = (req as any).user.name || (req as any).user.email;
@@ -25,7 +32,6 @@ export const createProject = async (req: Request, res: Response) => {
       });
     }
 
-    // ensure owner is always part of team
     let projectTeam: string[] = [];
     if (Array.isArray(team) && team.length) {
       projectTeam = Array.from(new Set([...team, userId]));
@@ -47,49 +53,33 @@ export const createProject = async (req: Request, res: Response) => {
     await project.populate('owner', 'name email');
     await project.populate('team', 'name email');
 
-    // 🔔 Send notifications to team members
+    // ✅ EMIT TO PROJECT ROOM
+    emitToRoom(`project-${project._id}`, 'project:created', {
+      projectId: project._id,
+      name: name,
+      owner: userId,
+      team: projectTeam,
+      timestamp: new Date(),
+    });
+
+    // ✅ NOTIFY TEAM MEMBERS (excluding creator)
     const otherTeamMembers = projectTeam.filter(
-      (memberId: string) => memberId !== userId
+      (memberId: string) => memberId !== userId,
     );
+
     if (otherTeamMembers.length > 0) {
-      const notificationDocs = otherTeamMembers.map((memberId: string) => ({
-        user: memberId,
-        type: 'project' as const,
+      await createNotification({
+        userIds: otherTeamMembers,
+        type: 'project',
+        action: 'created',
         title: 'Added to project',
         message: `You have been added to project: ${name}`,
-        data: {
-          entityId: project._id.toString(),
-          entityType: 'project',
-          projectName: name,
-          createdBy: userId.toString(),
-          createdByName: userName,
-        },
-      }));
-
-      if (notificationDocs.length > 0) {
-        try {
-          await Notification.insertMany(notificationDocs as any[]);
-        } catch (notifErr) {
-          console.error('Failed to create project notifications', notifErr);
-        }
-      }
-    }
-
-    // 🔔 Create notification for project owner
-    try {
-      await Notification.create({
-        user: userId,
-        type: 'project',
-        title: 'Project created',
-        message: `Your project "${name}" was created successfully.`,
-        data: {
-          entityId: project._id.toString(),
-          entityType: 'project',
-          projectName: name,
-        },
-      } as any);
-    } catch (notifErr) {
-      console.error('Failed to create owner notification', notifErr);
+        entityType: 'project',
+        entityId: project._id.toString(),
+        icon: 'project',
+        color: '#06b6d4',
+        actionUrl: '/projects',
+      });
     }
 
     return res.status(201).json({
@@ -106,7 +96,7 @@ export const createProject = async (req: Request, res: Response) => {
   }
 };
 
-// Get All Projects
+// ============ GET ALL PROJECTS ============
 export const getProjects = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user._id;
@@ -115,9 +105,7 @@ export const getProjects = async (req: Request, res: Response) => {
 
     let filter: any = {};
 
-    // ADMIN sees all projects
     if (userRole !== 'ADMIN') {
-      // MANAGER and EMPLOYEE see only their projects or where they are in team
       filter.$or = [
         { owner: userId },
         { team: userId },
@@ -146,7 +134,7 @@ export const getProjects = async (req: Request, res: Response) => {
   }
 };
 
-// Get Single Project
+// ============ GET SINGLE PROJECT ============
 export const getProject = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -164,10 +152,9 @@ export const getProject = async (req: Request, res: Response) => {
       });
     }
 
-    // Check access
     const isOwner = project.owner._id.toString() === userId;
     const isTeamMember = project.team.some(
-      (member: any) => member._id.toString() === userId
+      (member: any) => member._id.toString() === userId,
     );
     const isPublic = project.visibility === 'PUBLIC';
 
@@ -190,7 +177,7 @@ export const getProject = async (req: Request, res: Response) => {
   }
 };
 
-// Update Project
+// ============ UPDATE PROJECT ============
 export const updateProject = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -198,7 +185,6 @@ export const updateProject = async (req: Request, res: Response) => {
     const userRole = (req as any).user.role;
 
     const project = await Project.findById(id);
-
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -206,11 +192,7 @@ export const updateProject = async (req: Request, res: Response) => {
       });
     }
 
-    // Check permission: only owner or ADMIN
-    if (
-      userRole !== 'ADMIN' &&
-      project.owner.toString() !== userId
-    ) {
+    if (userRole !== 'ADMIN' && project.owner.toString() !== userId) {
       return res.status(403).json({
         success: false,
         message: 'You do not have permission to update this project',
@@ -227,6 +209,10 @@ export const updateProject = async (req: Request, res: Response) => {
       team,
     } = req.body;
 
+    const oldName = project.name;
+    const oldStatus = project.status;
+    const oldTeam = project.team.map((m: any) => m.toString());
+
     if (name) project.name = name;
     if (description !== undefined) project.description = description;
     if (status) project.status = status;
@@ -238,6 +224,51 @@ export const updateProject = async (req: Request, res: Response) => {
     await project.save();
     await project.populate('owner', 'name email');
     await project.populate('team', 'name email');
+
+    // ✅ EMIT UPDATE EVENT
+    emitToRoom(`project-${id}`, 'project:updated', {
+      projectId: project._id,
+      name: project.name,
+      status: project.status,
+      updatedAt: new Date(),
+    });
+
+    // ✅ NOTIFY PROJECT MEMBERS ABOUT UPDATE (excluding owner)
+    await notifyProject(project._id.toString(), {
+      type: 'project',
+      action: 'updated',
+      title: 'Project updated',
+      message: `Project "${project.name}" was updated`,
+      entityType: 'project',
+      entityId: project._id.toString(),
+      icon: 'project',
+      color: '#0ea5e9',
+      actionUrl: '/projects',
+    }, userId);
+
+    // ✅ If team changed, notify newly added members
+    if (team && Array.isArray(team)) {
+      const newTeamIds = team.map((t: any) => t.toString());
+      const addedMembers = newTeamIds.filter(
+        (memberId: string) =>
+          !oldTeam.includes(memberId) && memberId !== userId,
+      );
+
+      if (addedMembers.length > 0) {
+        await createNotification({
+          userIds: addedMembers,
+          type: 'project',
+          action: 'assigned',
+          title: 'Added to project',
+          message: `You have been added to project: ${project.name}`,
+          entityType: 'project',
+          entityId: project._id.toString(),
+          icon: 'project',
+          color: '#22c55e',
+          actionUrl: '/projects',
+        });
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -252,7 +283,7 @@ export const updateProject = async (req: Request, res: Response) => {
   }
 };
 
-// Delete Project
+// ============ DELETE PROJECT ============
 export const deleteProject = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -260,7 +291,6 @@ export const deleteProject = async (req: Request, res: Response) => {
     const userRole = (req as any).user.role;
 
     const project = await Project.findById(id);
-
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -268,18 +298,39 @@ export const deleteProject = async (req: Request, res: Response) => {
       });
     }
 
-    // Only ADMIN or project owner can delete
-    if (
-      userRole !== 'ADMIN' &&
-      project.owner.toString() !== userId
-    ) {
+    if (userRole !== 'ADMIN' && project.owner.toString() !== userId) {
       return res.status(403).json({
         success: false,
         message: 'You do not have permission to delete this project',
       });
     }
 
+    // capture team before delete
+    const teamUserIds = project.team.map((m: any) => m.toString());
+
     await Project.findByIdAndDelete(id);
+
+    // ✅ EMIT DELETE EVENT
+    emitToRoom(`project-${id}`, 'project:deleted', {
+      projectId: id,
+      timestamp: new Date(),
+    });
+
+    // ✅ NOTIFY TEAM THAT PROJECT WAS DELETED
+    if (teamUserIds.length > 0) {
+      await createNotification({
+        userIds: teamUserIds.filter((memberId) => memberId !== userId),
+        type: 'project',
+        action: 'deleted',
+        title: 'Project deleted',
+        message: `Project "${project.name}" has been deleted`,
+        entityType: 'project',
+        entityId: id,
+        icon: 'project',
+        color: '#ef4444',
+        actionUrl: '/projects',
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -293,7 +344,7 @@ export const deleteProject = async (req: Request, res: Response) => {
   }
 };
 
-// Add Team Member
+// ============ ADD TEAM MEMBER ============
 export const addTeamMember = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -303,7 +354,6 @@ export const addTeamMember = async (req: Request, res: Response) => {
     const userName = (req as any).user.name || (req as any).user.email;
 
     const project = await Project.findById(id);
-
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -311,10 +361,7 @@ export const addTeamMember = async (req: Request, res: Response) => {
       });
     }
 
-    if (
-      userRole !== 'ADMIN' &&
-      project.owner.toString() !== userId
-    ) {
+    if (userRole !== 'ADMIN' && project.owner.toString() !== userId) {
       return res.status(403).json({
         success: false,
         message: 'You do not have permission to modify this project',
@@ -326,24 +373,19 @@ export const addTeamMember = async (req: Request, res: Response) => {
       await project.save();
       await project.populate('team', 'name email');
 
-      // 🔔 Send notification to newly added member
-      try {
-        await Notification.create({
-          user: newMemberId,
-          type: 'project',
-          title: 'Added to project',
-          message: `You have been added to project: ${project.name}`,
-          data: {
-            entityId: project._id.toString(),
-            entityType: 'project',
-            projectName: project.name,
-            addedBy: userId.toString(),
-            addedByName: userName,
-          },
-        } as any);
-      } catch (notifErr) {
-        console.error('Failed to create member notification', notifErr);
-      }
+      // ✅ NOTIFY NEWLY ADDED MEMBER (persist + socket)
+      await createNotification({
+        userId: newMemberId,
+        type: 'project',
+        action: 'assigned',
+        title: 'Added to project',
+        message: `You have been added to project: ${project.name}`,
+        entityType: 'project',
+        entityId: project._id.toString(),
+        icon: 'project',
+        color: '#06b6d4',
+        actionUrl: '/projects',
+      });
     }
 
     res.status(200).json({

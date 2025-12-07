@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { CheckSquare, Plus, Search, Filter } from 'lucide-react';
 import tasksService from '../../services/tasks.service';
+import userService from '../../services/user.service';
 import { Task, CreateTaskPayload } from '../../types/task.types';
+import { User } from '../../types/user.types';
 import { useAuth } from '../../context/AuthContext';
 import { showToast } from '../../components/common/Toast';
 import TaskForm from './TaskForm';
@@ -14,12 +16,15 @@ const TasksHome: React.FC = () => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [priorityFilter, setPriorityFilter] = useState<FilterPriority>('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const isEmployee = user?.role === 'EMPLOYEE';
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -34,21 +39,36 @@ const TasksHome: React.FC = () => {
     }
   }, []);
 
+  const fetchUsers = useCallback(async () => {
+    try {
+      const data = await userService.getAllUsers();
+      setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      showToast.error('Failed to load users');
+    }
+  }, []);
+
   useEffect(() => {
     fetchTasks();
+    fetchUsers();
     const interval = setInterval(fetchTasks, 30000);
     return () => clearInterval(interval);
-  }, [fetchTasks]);
+  }, [fetchTasks, fetchUsers]);
 
   useEffect(() => {
     let filtered = [...tasks];
 
     if (statusFilter !== 'all') {
-      filtered = filtered.filter((t) => t.status.toLowerCase() === statusFilter.toUpperCase());
+      filtered = filtered.filter(
+        (t) => t.status.toUpperCase() === statusFilter.toUpperCase()
+      );
     }
 
     if (priorityFilter !== 'all') {
-      filtered = filtered.filter((t) => t.priority.toLowerCase() === priorityFilter.toUpperCase());
+      filtered = filtered.filter(
+        (t) => t.priority.toUpperCase() === priorityFilter.toUpperCase()
+      );
     }
 
     if (search) {
@@ -64,6 +84,11 @@ const TasksHome: React.FC = () => {
   }, [tasks, statusFilter, priorityFilter, search]);
 
   const handleCreateTask = async (data: CreateTaskPayload) => {
+    if (isEmployee) {
+      showToast.error('You are not allowed to create tasks');
+      return;
+    }
+
     try {
       const created = await tasksService.createTask(data);
       if (created) {
@@ -79,6 +104,30 @@ const TasksHome: React.FC = () => {
 
   const handleUpdateTask = async (data: CreateTaskPayload) => {
     if (!editingTask?._id) return;
+
+    // Employee: only update status and report/description
+    if (isEmployee) {
+      const payload: Partial<CreateTaskPayload> = {
+        status: data.status,
+        description: data.description,
+      } as any;
+
+      try {
+        const updated = await tasksService.updateTask(editingTask._id, payload);
+        if (updated) {
+          showToast.success('Task status and report updated');
+          setEditingTask(null);
+          setShowForm(false);
+          await fetchTasks();
+        }
+      } catch (error) {
+        console.error('Error updating task status:', error);
+        showToast.error('Failed to update task status');
+      }
+      return;
+    }
+
+    // Admin / Manager: full update
     try {
       const updated = await tasksService.updateTask(editingTask._id, data);
       if (updated) {
@@ -94,6 +143,11 @@ const TasksHome: React.FC = () => {
   };
 
   const handleDeleteTask = async (id: string) => {
+    if (isEmployee) {
+      showToast.error('You are not allowed to delete tasks');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this task?')) return;
     try {
       const deleted = await tasksService.deleteTask(id);
@@ -115,7 +169,16 @@ const TasksHome: React.FC = () => {
             <CheckSquare size={32} className="text-blue-600 dark:text-blue-400" />
             Tasks
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage your work tasks</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            Manage your work tasks.
+          </p>
+          {user?.role === 'EMPLOYEE' && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Use <span className="font-semibold text-blue-600 dark:text-blue-400">Update Status</span> to move the task
+              between Todo, In‑progress, Completed, or Blocked, and write a short{" "}
+              <span className="font-semibold">Report / Description</span> about what you worked on today.
+            </p>
+          )}
         </div>
         {user?.role !== 'EMPLOYEE' && (
           <button
@@ -135,6 +198,8 @@ const TasksHome: React.FC = () => {
         <div className="mb-8 bg-white text-slate-900 dark:bg-slate-800 dark:text-white rounded-xl border border-slate-200 dark:border-slate-700 p-6">
           <TaskForm
             task={editingTask}
+            users={users}
+            currentUserRole={user?.role}
             onSubmit={editingTask ? handleUpdateTask : handleCreateTask}
             onCancel={() => {
               setShowForm(false);
@@ -158,19 +223,21 @@ const TasksHome: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {(['all', 'todo', 'in-progress', 'completed', 'blocked'] as const).map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2.5 rounded-lg font-medium transition-all ${
-                statusFilter === status
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-              }`}
-            >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </button>
-          ))}
+          {(['all', 'todo', 'in-progress', 'completed', 'blocked'] as const).map(
+            (status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-4 py-2.5 rounded-lg font-medium transition-all ${
+                  statusFilter === status
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </button>
+            )
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -203,6 +270,7 @@ const TasksHome: React.FC = () => {
               key={task._id}
               task={task}
               currentUserId={user?._id}
+              currentUserRole={user?.role}
               onEdit={() => {
                 setEditingTask(task);
                 setShowForm(true);

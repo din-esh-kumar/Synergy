@@ -2,15 +2,17 @@
 import { Request, Response } from "express";
 import Meeting from "../models/Meeting.model";
 import User from "../models/User.model";
-import { createNotification } from "../utils/notificationEngine"; // ✅ ADDED
+import { createNotification } from "../utils/notificationEngine";
 
 // helper to get current user id safely
 const getAuthUserId = (req: Request): string | undefined => {
   const u = (req as any).user;
   if (!u) return undefined;
-  return (u.id?.toString?.() || u._id?.toString?.() || u.userId) as
-    | string
-    | undefined;
+  return (
+    u.id?.toString?.() ||
+    u._id?.toString?.() ||
+    u.userId
+  ) as string | undefined;
 };
 
 // Create a new meeting
@@ -25,6 +27,7 @@ export const createMeeting = async (req: Request, res: Response) => {
       joinLink,
       attendees,
     } = req.body;
+
     const organizerId = getAuthUserId(req);
     const organizerName =
       (req as any).user?.name ||
@@ -32,22 +35,27 @@ export const createMeeting = async (req: Request, res: Response) => {
       (req as any).user?.email;
 
     if (!organizerId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized" });
     }
 
     const start = new Date(startTime);
     const end = new Date(endTime);
 
     if (start >= end) {
-      return res
-        .status(400)
-        .json({ success: false, message: "End time must be after start time" });
+      return res.status(400).json({
+        success: false,
+        message: "End time must be after start time",
+      });
     }
 
     let attendeeIds: string[] = Array.isArray(attendees)
       ? attendees
           .map((id: any) =>
-            typeof id === "string" ? id : id?._id?.toString() || id?.id
+            typeof id === "string"
+              ? id
+              : id?._id?.toString() || id?.id
           )
           .filter(
             (id: any) => typeof id === "string" && id.trim().length > 0
@@ -78,33 +86,32 @@ export const createMeeting = async (req: Request, res: Response) => {
     await meeting.save();
     await meeting.populate("organizer attendees", "name email");
 
-    // ✅ FIXED: Use notificationEngine for real-time delivery
+    // notify attendees (exclude organizer)
     if (attendeeIds.length > 0 && organizerId) {
-      // Notify attendees (exclude organizer)
       await createNotification({
-        userIds: attendeeIds.filter(id => id !== organizerId),
-        type: 'meeting',
-        action: 'assigned',
-        title: 'New meeting invitation',
+        userIds: attendeeIds.filter((id) => id !== organizerId),
+        type: "meeting",
+        action: "assigned",
+        title: "New meeting invitation",
         message: `You've been invited to "${meeting.title}"`,
-        entityType: 'meeting',
+        entityType: "meeting",
         entityId: meeting._id.toString(),
-        icon: 'video',
-        color: '#3b82f6',
+        icon: "video",
+        color: "#3b82f6",
       });
     }
 
-    // Notify organizer
+    // notify organizer
     await createNotification({
       userId: organizerId,
-      type: 'meeting',
-      action: 'created',
-      title: 'Meeting created successfully',
+      type: "meeting",
+      action: "created",
+      title: "Meeting created successfully",
       message: `Your meeting "${meeting.title}" has ${attendeeIds.length} attendees`,
-      entityType: 'meeting',
+      entityType: "meeting",
       entityId: meeting._id.toString(),
-      icon: 'check-circle',
-      color: '#10b981',
+      icon: "check-circle",
+      color: "#10b981",
     });
 
     return res.status(201).json({
@@ -129,7 +136,9 @@ export const getMeetings = async (req: Request, res: Response) => {
     const { status, startDate, endDate, search } = req.query;
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized" });
     }
 
     const query: any = {
@@ -145,7 +154,6 @@ export const getMeetings = async (req: Request, res: Response) => {
       if (startDate) {
         query.startTime.$gte = new Date(startDate as string);
       }
-
       if (endDate) {
         query.startTime.$lte = new Date(endDate as string);
       }
@@ -188,7 +196,9 @@ export const getMeetingById = async (req: Request, res: Response) => {
     const userId = getAuthUserId(req);
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized" });
     }
 
     const meeting = await Meeting.findById(id).populate(
@@ -197,13 +207,17 @@ export const getMeetingById = async (req: Request, res: Response) => {
     );
 
     if (!meeting) {
-      return res.status(404).json({ success: false, message: "Meeting not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Meeting not found" });
     }
 
     const organizerIdStr = (meeting.organizer as any)._id
       ? (meeting.organizer as any)._id.toString()
       : (meeting.organizer as any).toString();
+
     const isOrganizer = organizerIdStr === userId;
+
     const isAttendee = Array.isArray(meeting.attendees)
       ? meeting.attendees.some((attendee: any) => {
           const attId = attendee?._id
@@ -214,7 +228,9 @@ export const getMeetingById = async (req: Request, res: Response) => {
       : false;
 
     if (!isOrganizer && !isAttendee) {
-      return res.status(403).json({ success: false, message: "Access denied" });
+      return res
+        .status(403)
+        .json({ success: false, message: "Access denied" });
     }
 
     return res.status(200).json({ success: true, meeting });
@@ -236,16 +252,26 @@ export const updateMeeting = async (req: Request, res: Response) => {
     const updates: any = req.body;
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized" });
     }
 
     const meeting = await Meeting.findById(id);
 
     if (!meeting) {
-      return res.status(404).json({ success: false, message: "Meeting not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Meeting not found" });
     }
 
-    if (meeting.organizer.toString() !== userId) {
+    // robust organizer comparison (handles ObjectId or populated doc)
+    const meetingOrganizerId =
+      (meeting.organizer as any)?._id?.toString?.() ||
+      (meeting.organizer as any)?.id?.toString?.() ||
+      meeting.organizer.toString();
+
+    if (!meetingOrganizerId || meetingOrganizerId !== userId) {
       return res.status(403).json({
         success: false,
         message: "Only the organizer can update this meeting",
@@ -260,6 +286,7 @@ export const updateMeeting = async (req: Request, res: Response) => {
       const endTime = updates.endTime
         ? new Date(updates.endTime)
         : new Date(meeting.endTime);
+
       if (startTime >= endTime) {
         return res.status(400).json({
           success: false,
@@ -274,7 +301,9 @@ export const updateMeeting = async (req: Request, res: Response) => {
         .map((a: any) =>
           typeof a === "string" ? a : a?._id?.toString() || a?.id
         )
-        .filter((id: any) => typeof id === "string" && id.trim().length > 0);
+        .filter(
+          (id: any) => typeof id === "string" && id.trim().length > 0
+        );
 
       console.log("PUT /meetings/:id raw attendees:", updates.attendees);
       console.log("PUT /meetings/:id normalized attendees:", normalizedIds);
@@ -282,7 +311,9 @@ export const updateMeeting = async (req: Request, res: Response) => {
 
       if (normalizedIds.length > 0) {
         const existingUsers = await User.find({ _id: { $in: normalizedIds } });
-        const existingIds = existingUsers.map((u: any) => u._id.toString());
+        const existingIds = existingUsers.map((u: any) =>
+          u._id.toString()
+        );
         console.log("Existing user IDs:", existingIds);
         console.log(
           "Invalid attendee IDs:",
@@ -298,9 +329,54 @@ export const updateMeeting = async (req: Request, res: Response) => {
       }
     }
 
+    const oldAttendees = (meeting.attendees || []).map((a: any) =>
+      a?.toString ? a.toString() : a
+    );
+    const oldTitle = meeting.title;
+
     Object.assign(meeting, updates);
     await meeting.save();
     await meeting.populate("organizer attendees", "name email");
+
+    // ✅ Notify attendees about update (excluding organizer)
+    const updatedAttendeeIds: string[] = (meeting.attendees || []).map(
+      (a: any) => (a?._id ? a._id.toString() : a.toString())
+    );
+    const notifyIds = updatedAttendeeIds.filter((id) => id !== userId);
+
+    if (notifyIds.length > 0) {
+      await createNotification({
+        userIds: notifyIds,
+        type: "meeting",
+        action: "updated",
+        title: "Meeting updated",
+        message: `Meeting "${meeting.title}" was updated`,
+        entityType: "meeting",
+        entityId: meeting._id.toString(),
+        icon: "edit",
+        color: "#0ea5e9",
+      });
+    }
+
+    // ✅ If new attendees were added, send them a dedicated invite notification
+    if (Array.isArray(updates.attendees)) {
+      const added = updatedAttendeeIds.filter(
+        (id) => !oldAttendees.includes(id) && id !== userId
+      );
+      if (added.length > 0) {
+        await createNotification({
+          userIds: added,
+          type: "meeting",
+          action: "assigned",
+          title: "New meeting invitation",
+          message: `You've been invited to "${meeting.title}"`,
+          entityType: "meeting",
+          entityId: meeting._id.toString(),
+          icon: "video",
+          color: "#3b82f6",
+        });
+      }
+    }
 
     return res.status(200).json({
       success: true,
@@ -324,23 +400,51 @@ export const deleteMeeting = async (req: Request, res: Response) => {
     const userId = getAuthUserId(req);
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized" });
     }
 
     const meeting = await Meeting.findById(id);
 
     if (!meeting) {
-      return res.status(404).json({ success: false, message: "Meeting not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Meeting not found" });
     }
 
-    if (meeting.organizer.toString() !== userId) {
+    const meetingOrganizerId =
+      (meeting.organizer as any)?._id?.toString?.() ||
+      (meeting.organizer as any)?.id?.toString?.() ||
+      meeting.organizer.toString();
+
+    if (!meetingOrganizerId || meetingOrganizerId !== userId) {
       return res.status(403).json({
         success: false,
         message: "Only the organizer can delete this meeting",
       });
     }
 
+    const attendeeIds: string[] = (meeting.attendees || []).map((a: any) =>
+      a?._id ? a._id.toString() : a.toString()
+    );
+
     await meeting.deleteOne();
+
+    // ✅ Notify attendees about cancellation
+    if (attendeeIds.length > 0) {
+      await createNotification({
+        userIds: attendeeIds.filter((id) => id !== userId),
+        type: "meeting",
+        action: "deleted",
+        title: "Meeting cancelled",
+        message: `Meeting "${meeting.title}" has been cancelled`,
+        entityType: "meeting",
+        entityId: id,
+        icon: "x-circle",
+        color: "#ef4444",
+      });
+    }
 
     return res
       .status(200)
@@ -363,7 +467,9 @@ export const getUpcomingMeetings = async (req: Request, res: Response) => {
     const now = new Date();
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized" });
     }
 
     const meetings = await Meeting.find({
@@ -396,7 +502,9 @@ export const getMonthlyMeetings = async (req: Request, res: Response) => {
     const { year, month } = req.query;
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized" });
     }
 
     if (!year || !month) {
