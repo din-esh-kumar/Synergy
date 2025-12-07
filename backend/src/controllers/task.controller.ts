@@ -1,9 +1,14 @@
+// src/controllers/task.controller.ts
+
 import { Request, Response } from 'express';
 import Task from '../models/Task.model';
 import User from '../models/User.model';
-import Notification from '../models/Notification.model';
+import { emitToRoom } from '../utils/socketEmitter';
+import {
+  createNotification,
+} from '../utils/notificationEngine';
 
-// Create Task
+// ============ CREATE TASK ============
 export const createTask = async (req: Request, res: Response) => {
   try {
     const { title, description, priority, assignedTo, dueDate, projectId } =
@@ -12,7 +17,6 @@ export const createTask = async (req: Request, res: Response) => {
     const userRole = (req as any).user.role;
     const userName = (req as any).user.name || (req as any).user.email;
 
-    // Validate required fields
     if (!title || !assignedTo) {
       return res.status(400).json({
         success: false,
@@ -20,7 +24,6 @@ export const createTask = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if assigned user exists
     const assignedUser = await User.findById(assignedTo);
     if (!assignedUser) {
       return res.status(404).json({
@@ -29,7 +32,6 @@ export const createTask = async (req: Request, res: Response) => {
       });
     }
 
-    // Only ADMIN and MANAGER can create tasks for others
     if (userRole === 'EMPLOYEE' && assignedTo !== userId) {
       return res.status(403).json({
         success: false,
@@ -51,28 +53,32 @@ export const createTask = async (req: Request, res: Response) => {
     await task.populate('assignedTo', 'name email');
     await task.populate('createdBy', 'name email');
 
-    // 🔔 Send notification to assigned user (if not the creator)
+    // ✅ EMIT TASK CREATED EVENT TO PROJECT ROOM
+    if (projectId) {
+      emitToRoom(`project-${projectId}`, 'task:created', {
+        taskId: task._id,
+        title: task.title,
+        assignedTo: assignedTo,
+        priority: task.priority,
+        createdBy: userId,
+        timestamp: new Date(),
+      });
+    }
+
+    // ✅ CREATE + EMIT NOTIFICATION TO ASSIGNEE (persists + socket)
     if (assignedTo !== userId) {
-      try {
-        await Notification.create({
-          user: assignedTo,
-          type: 'task',
-          title: 'New task assigned',
-          message: `You have been assigned task: ${title}`,
-          data: {
-            entityId: task._id.toString(),
-            entityType: 'task',
-            taskTitle: title,
-            projectId: projectId || null,
-            assignedBy: userId.toString(),
-            assignedByName: userName,
-            priority: priority || 'MEDIUM',
-            dueDate: dueDate || null,
-          },
-        } as any);
-      } catch (notifErr) {
-        console.error('Failed to create task notification', notifErr);
-      }
+      await createNotification({
+        userId: assignedTo,
+        type: 'task',
+        action: 'assigned',
+        title: 'New task assigned',
+        message: `You have been assigned: "${title}"`,
+        entityType: 'task',
+        entityId: task._id.toString(),
+        icon: 'task',
+        color: '#3b82f6',
+        actionUrl: '/tasks', // adjust route if you have a detail page
+      });
     }
 
     res.status(201).json({
@@ -88,7 +94,7 @@ export const createTask = async (req: Request, res: Response) => {
   }
 };
 
-// Get All Tasks (with filters)
+// ============ GET ALL TASKS ============
 export const getTasks = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user._id;
@@ -97,16 +103,10 @@ export const getTasks = async (req: Request, res: Response) => {
 
     let filter: any = {};
 
-    // ADMIN sees all tasks
     if (userRole !== 'ADMIN') {
-      // MANAGER sees tasks in their projects or assigned to their team
       if (userRole === 'MANAGER') {
-        filter.$or = [
-          { createdBy: userId },
-          { assignedTo: userId },
-        ];
+        filter.$or = [{ createdBy: userId }, { assignedTo: userId }];
       } else {
-        // EMPLOYEE sees only their own tasks
         filter.assignedTo = userId;
       }
     }
@@ -134,7 +134,7 @@ export const getTasks = async (req: Request, res: Response) => {
   }
 };
 
-// Get Single Task
+// ============ GET SINGLE TASK ============
 export const getTask = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -153,7 +153,6 @@ export const getTask = async (req: Request, res: Response) => {
       });
     }
 
-    // Check access
     if (
       userRole !== 'ADMIN' &&
       task.assignedTo.toString() !== userId &&
@@ -177,7 +176,7 @@ export const getTask = async (req: Request, res: Response) => {
   }
 };
 
-// Update Task
+// ============ UPDATE TASK ============
 export const updateTask = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -186,7 +185,6 @@ export const updateTask = async (req: Request, res: Response) => {
     const userName = (req as any).user.name || (req as any).user.email;
 
     const task = await Task.findById(id);
-
     if (!task) {
       return res.status(404).json({
         success: false,
@@ -194,7 +192,6 @@ export const updateTask = async (req: Request, res: Response) => {
       });
     }
 
-    // Check permission: ADMIN, task creator, or assigned user can update
     if (
       userRole !== 'ADMIN' &&
       task.createdBy.toString() !== userId &&
@@ -209,9 +206,8 @@ export const updateTask = async (req: Request, res: Response) => {
     const { title, description, status, priority, assignedTo, dueDate } =
       req.body;
 
-    // Track if assignee changed
     const oldAssignee = task.assignedTo.toString();
-    const newAssignee = assignedTo;
+    const oldStatus = task.status;
 
     if (title) task.title = title;
     if (description !== undefined) task.description = description;
@@ -220,7 +216,7 @@ export const updateTask = async (req: Request, res: Response) => {
     if (assignedTo) task.assignedTo = assignedTo;
     if (dueDate) task.dueDate = dueDate;
 
-    if (status === 'COMPLETED' && !task.completedDate) {
+    if (status === 'COMPLETED' && oldStatus !== 'COMPLETED') {
       task.completedDate = new Date();
     }
 
@@ -228,50 +224,52 @@ export const updateTask = async (req: Request, res: Response) => {
     await task.populate('assignedTo', 'name email');
     await task.populate('createdBy', 'name email');
 
-    // 🔔 Send notification if task is reassigned
-    if (newAssignee && oldAssignee !== newAssignee && newAssignee !== userId) {
-      try {
-        await Notification.create({
-          user: newAssignee,
-          type: 'task',
-          title: 'Task reassigned',
-          message: `You have been assigned task: ${task.title}`,
-          data: {
-            entityId: task._id.toString(),
-            entityType: 'task',
-            taskTitle: task.title,
-            projectId: task.projectId || null,
-            reassignedBy: userId.toString(),
-            reassignedByName: userName,
-            priority: task.priority,
-            dueDate: task.dueDate || null,
-          },
-        } as any);
-      } catch (notifErr) {
-        console.error('Failed to create reassignment notification', notifErr);
-      }
+    // ✅ EMIT TASK UPDATE EVENT TO PROJECT ROOM
+    if (task.projectId) {
+      emitToRoom(`project-${task.projectId}`, 'task:updated', {
+        taskId: task._id,
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+        updatedBy: userId,
+        timestamp: new Date(),
+      });
     }
 
-    // 🔔 Send notification when task is completed
+    // ✅ NOTIFY NEW ASSIGNEE IF REASSIGNED
+    if (
+      assignedTo &&
+      oldAssignee !== assignedTo &&
+      assignedTo !== userId
+    ) {
+      await createNotification({
+        userId: assignedTo,
+        type: 'task',
+        action: 'assigned',
+        title: 'Task reassigned',
+        message: `You have been assigned: "${task.title}"`,
+        entityType: 'task',
+        entityId: task._id.toString(),
+        icon: 'task',
+        color: '#f59e0b',
+        actionUrl: '/tasks',
+      });
+    }
+
+    // ✅ NOTIFY ORIGINAL ASSIGNEE WHEN TASK COMPLETED BY SOMEONE ELSE
     if (status === 'COMPLETED' && oldAssignee !== userId) {
-      try {
-        await Notification.create({
-          user: oldAssignee,
-          type: 'task',
-          title: 'Task completed',
-          message: `Task "${task.title}" has been marked as completed`,
-          data: {
-            entityId: task._id.toString(),
-            entityType: 'task',
-            taskTitle: task.title,
-            projectId: task.projectId || null,
-            completedBy: userId.toString(),
-            completedByName: userName,
-          },
-        } as any);
-      } catch (notifErr) {
-        console.error('Failed to create completion notification', notifErr);
-      }
+      await createNotification({
+        userId: oldAssignee,
+        type: 'task',
+        action: 'completed',
+        title: 'Task completed',
+        message: `"${task.title}" has been completed`,
+        entityType: 'task',
+        entityId: task._id.toString(),
+        icon: 'task',
+        color: '#10b981',
+        actionUrl: '/tasks',
+      });
     }
 
     res.status(200).json({
@@ -287,7 +285,7 @@ export const updateTask = async (req: Request, res: Response) => {
   }
 };
 
-// Delete Task
+// ============ DELETE TASK ============
 export const deleteTask = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -295,7 +293,6 @@ export const deleteTask = async (req: Request, res: Response) => {
     const userRole = (req as any).user.role;
 
     const task = await Task.findById(id);
-
     if (!task) {
       return res.status(404).json({
         success: false,
@@ -303,7 +300,6 @@ export const deleteTask = async (req: Request, res: Response) => {
       });
     }
 
-    // Only ADMIN or task creator can delete
     if (userRole !== 'ADMIN' && task.createdBy.toString() !== userId) {
       return res.status(403).json({
         success: false,
@@ -311,7 +307,18 @@ export const deleteTask = async (req: Request, res: Response) => {
       });
     }
 
+    const projectId = task.projectId;
     await Task.findByIdAndDelete(id);
+
+    // ✅ EMIT DELETE EVENT TO PROJECT ROOM
+    if (projectId) {
+      emitToRoom(`project-${projectId}`, 'task:deleted', {
+        taskId: id,
+        title: task.title,
+        deletedBy: userId,
+        timestamp: new Date(),
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -325,7 +332,7 @@ export const deleteTask = async (req: Request, res: Response) => {
   }
 };
 
-// Add Comment to Task
+// ============ ADD COMMENT TO TASK ============
 export const addComment = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -340,7 +347,6 @@ export const addComment = async (req: Request, res: Response) => {
     }
 
     const task = await Task.findById(id);
-
     if (!task) {
       return res.status(404).json({
         success: false,
@@ -348,7 +354,8 @@ export const addComment = async (req: Request, res: Response) => {
       });
     }
 
-    task.comments?.push({
+    task.comments = task.comments || [];
+    task.comments.push({
       userId,
       text,
       createdAt: new Date(),
@@ -356,6 +363,29 @@ export const addComment = async (req: Request, res: Response) => {
 
     await task.save();
     await task.populate('comments.userId', 'name email');
+
+    // ✅ EMIT COMMENT TO TASK ROOM
+    emitToRoom(`task-${id}`, 'task:comment_added', {
+      taskId: id,
+      comment: task.comments[task.comments.length - 1],
+      timestamp: new Date(),
+    });
+
+    // Optional: notify assignee about new comment (uncomment if you want)
+    // if (task.assignedTo && task.assignedTo.toString() !== userId) {
+    //   await createNotification({
+    //     userId: task.assignedTo.toString(),
+    //     type: 'task',
+    //     action: 'commented',
+    //     title: 'New comment on task',
+    //     message: `New comment on "${task.title}"`,
+    //     entityType: 'task',
+    //     entityId: task._id.toString(),
+    //     icon: 'chat',
+    //     color: '#6366f1',
+    //     actionUrl: '/tasks',
+    //   });
+    // }
 
     res.status(200).json({
       success: true,

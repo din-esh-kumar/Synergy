@@ -12,21 +12,16 @@ import TasksHome from './pages/tasks/TasksHome';
 import ProjectsHome from './pages/projects/ProjectsHome';
 import AdminUsers from './pages/admin/AdminUsers';
 import TeamsHome from './pages/team/TeamsHome';
-import { IssueList } from './pages/Issues/IssueList';
+// IMPORTANT: use components/Issues, not pages/Issues
+import IssueHome from './pages/Issues/IssueHome';
 import SettingsPage from './pages/Settings/SettingsHome';
 import MessagesPage from './pages/chat/MessagesPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 
 export const router = createBrowserRouter([
   // Public
-  {
-    path: '/login',
-    element: <Login />,
-  },
-  {
-    path: '/register',
-    element: <Register />,
-  },
+  { path: '/login', element: <Login /> },
+  { path: '/register', element: <Register /> },
 
   // Protected app shell
   {
@@ -44,7 +39,7 @@ export const router = createBrowserRouter([
       { path: '/projects', element: <ProjectsHome /> },
       { path: '/admin/users', element: <AdminUsers /> },
       { path: '/teams', element: <TeamsHome /> },
-      { path: '/issues', element: <IssueList /> },
+      { path: '/issues', element: <IssueHome /> }, // original Issues table UI
       { path: '/settings', element: <SettingsPage /> },
       { path: '/messages', element: <MessagesPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
@@ -53,8 +48,5 @@ export const router = createBrowserRouter([
   },
 
   // Fallback
-  {
-    path: '*',
-    element: <Navigate to="/dashboard" replace />,
-  },
+  { path: '*', element: <Navigate to="/dashboard" replace /> },
 ]);

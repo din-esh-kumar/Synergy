@@ -1,8 +1,11 @@
+// backend/src/controllers/document.controller.ts
 import { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import Document from '../models/Document.model';
+import { createNotification, notifyProject } from '../utils/notificationEngine';
 
+// ============ UPLOAD DOCUMENT ============
 export async function uploadDocument(req: Request, res: Response) {
   try {
     const { projectId, tags } = req.body;
@@ -42,6 +45,18 @@ export async function uploadDocument(req: Request, res: Response) {
       tags: normalizedTags,
     });
 
+    // ✅ NOTIFY PROJECT TEAM ABOUT NEW DOCUMENT (exclude uploader) - FIXED
+    await notifyProject(projectId, {
+      type: 'project',
+      action: 'updated',  // Use existing enum value
+      title: 'New document uploaded',
+      message: `"${document.originalName}" was uploaded to the project`,
+      entityType: 'document',
+      entityId: document._id.toString(),
+      icon: 'file',
+      color: '#10b981',
+    }, userId);
+
     res.status(201).json(document);
   } catch (error) {
     console.error('Error uploading document:', error);
@@ -49,6 +64,7 @@ export async function uploadDocument(req: Request, res: Response) {
   }
 }
 
+// ============ GET PROJECT DOCUMENTS ============
 export async function getProjectDocuments(req: Request, res: Response) {
   try {
     const { projectId } = req.params;
@@ -64,6 +80,7 @@ export async function getProjectDocuments(req: Request, res: Response) {
   }
 }
 
+// ============ DELETE DOCUMENT ============
 export async function deleteDocument(req: Request, res: Response) {
   try {
     const { documentId } = req.params;
@@ -83,7 +100,24 @@ export async function deleteDocument(req: Request, res: Response) {
       fs.unlinkSync(filePath);
     }
 
+    const projectId = document.projectId;
+    const documentName = document.originalName;
+
     await Document.findByIdAndDelete(documentId);
+
+    // ✅ NOTIFY PROJECT TEAM ABOUT DOCUMENT DELETION (exclude deleter) - FIXED
+    if (projectId) {
+      await notifyProject(projectId.toString(), {
+        type: 'project',
+        action: 'updated',  // Use existing enum value
+        title: 'Document deleted',
+        message: `"${documentName}" has been removed from the project`,
+        entityType: 'document',
+        entityId: documentId,
+        icon: 'file-x',
+        color: '#ef4444',
+      }, userId);
+    }
 
     res.json({ success: true, message: 'Document deleted' });
   } catch (error) {
@@ -92,6 +126,7 @@ export async function deleteDocument(req: Request, res: Response) {
   }
 }
 
+// ============ DOWNLOAD DOCUMENT ============
 export async function downloadDocument(req: Request, res: Response) {
   try {
     const { documentId } = req.params;

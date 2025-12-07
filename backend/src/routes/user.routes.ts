@@ -1,32 +1,36 @@
-// backend/src/routes/user.routes.ts
-import express from 'express';
-import authenticateUser from '../middleware/auth.middleware';
-import { isAdmin } from '../middleware/IsAdmin';
+import express from "express";
+import authenticateUser from "../middleware/auth.middleware";
+import { isAdmin } from "../middleware/IsAdmin";
 import {
-  // adjust these to exactly match your user.controller.ts exports
-  getUser,              // for /me
-  updateUser,           // for /me
+  getUser,          // /me
+  updateUser,       // /me
   getAllUsers,
-  getUserById,          // if you have this; otherwise remove the route
+  getUserById,
   createUser,
   deleteUser,
-  updateUserStatus,     // if you have this; otherwise remove the route
-} from '../controllers/user.controller';
+  updateUserStatus,
+} from "../controllers/user.controller";
 
 const router = express.Router();
 
-// Logged-in user endpoints (profile)
-router.get('/me', authenticateUser, getUser);
-router.put('/me', authenticateUser, updateUser);
+// Profile
+router.get("/me", authenticateUser, getUser);
+router.put("/me", authenticateUser, updateUser);
 
-// Admin-only user management
-router.get('/', authenticateUser, isAdmin, getAllUsers);
+// NON‑ADMIN list, used by Meetings/Teams
+router.get("/", authenticateUser, getAllUsers);
 
-router.get('/:id', authenticateUser, isAdmin, getUserById);
-
-router.post('/', authenticateUser, isAdmin, createUser);
-router.put('/:id', authenticateUser, isAdmin, updateUser);
-router.delete('/:id', authenticateUser, isAdmin, deleteUser);
-router.patch('/:id/status', authenticateUser, isAdmin, updateUserStatus);
+// ADMIN management – will be mounted under /api/admin/users
+router.get("/manage", authenticateUser, isAdmin, getAllUsers);
+router.get("/manage/:id", authenticateUser, isAdmin, getUserById);
+router.post("/manage", authenticateUser, isAdmin, createUser);
+router.put("/manage/:id", authenticateUser, isAdmin, updateUser);
+router.delete("/manage/:id", authenticateUser, isAdmin, deleteUser);
+router.patch(
+  "/manage/:id/status",
+  authenticateUser,
+  isAdmin,
+  updateUserStatus
+);
 
 export default router;

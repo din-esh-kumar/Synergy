@@ -1,6 +1,7 @@
 // src/controllers/settings.controller.ts
 import { Request, Response } from "express";
 import User from "../models/User.model";
+import { createNotification } from "../utils/notificationEngine";
 
 /**
  * GET /settings
@@ -84,25 +85,46 @@ const updateProfile = async (req: Request, res: Response) => {
   try {
     const authUser = (req as any).user;
     const userId = authUser?._id;
+    const updaterId = authUser?._id?.toString();
+    const updaterRole = authUser?.role;
 
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const { name, phone, avatarUrl } = req.body;
+    const { name, phone, avatarUrl, targetUserId } = req.body;
+    const targetUserIdStr = targetUserId || userId.toString();
+    const isSelfUpdate = targetUserIdStr === updaterId;
+
+    const updateFields: any = {};
+    if (name !== undefined) updateFields.name = name;
+    if (phone !== undefined) updateFields.phone = phone;
+    if (avatarUrl !== undefined) updateFields.avatar = avatarUrl;
 
     const user = await User.findByIdAndUpdate(
-      userId,
-      {
-        ...(name && { name }),
-        ...(phone && { phone }),
-        ...(avatarUrl && { avatar: avatarUrl }),
-      },
+      targetUserIdStr,
+      updateFields,
       { new: true }
     ).select("name email role phone avatar");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // ✅ NOTIFY TARGET USER IF UPDATED BY ADMIN (not self-update)
+    if (!isSelfUpdate && updaterRole === 'ADMIN') {
+      await createNotification({
+        userId: targetUserIdStr,
+        type: 'system',
+        action: 'updated',
+        title: 'Profile updated',
+        message: `Your profile was updated by an admin (${authUser.name || authUser.email})`,
+        entityType: 'user',
+        entityId: targetUserIdStr,
+        icon: 'user',
+        color: '#6366f1',
+        actionUrl: '/settings',
+      });
     }
 
     return res.json({

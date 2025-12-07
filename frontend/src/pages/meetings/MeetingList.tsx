@@ -71,9 +71,8 @@ const MeetingList: React.FC<Props> = ({
     (!!end ? start <= now && now <= end : start <= now);
 
   const canManage =
-    currentUserRole === 'ADMIN' ||
-    currentUserRole === 'MANAGER' ||
-    isOrganizer;
+  currentUserRole === 'ADMIN' || isOrganizer;
+
 
   return (
     <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4 hover:shadow-lg transition-all">

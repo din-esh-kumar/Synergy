@@ -5,8 +5,23 @@ import { emitNotification } from './socketEmitter';
 export interface NotificationPayload {
   userId?: string;
   userIds?: string[];
-  type: 'team' | 'project' | 'task' | 'subtask' | 'meeting' | 'chat' | 'message' | 'system';
-  action?: 'created' | 'updated' | 'deleted' | 'assigned' | 'commented' | 'mentioned' | 'completed';
+  type:
+    | 'team'
+    | 'project'
+    | 'task'
+    | 'subtask'
+    | 'meeting'
+    | 'chat'
+    | 'message'
+    | 'system';
+  action?:
+    | 'created'
+    | 'updated'
+    | 'deleted'
+    | 'assigned'
+    | 'commented'
+    | 'mentioned'
+    | 'completed';
   title: string;
   message: string;
   entityType?: string;
@@ -22,7 +37,7 @@ export interface NotificationPayload {
 export async function createNotification(payload: NotificationPayload) {
   try {
     const userIds = payload.userIds || (payload.userId ? [payload.userId] : []);
-    
+
     if (userIds.length === 0) {
       console.warn('No users specified for notification');
       return [];
@@ -44,7 +59,7 @@ export async function createNotification(payload: NotificationPayload) {
         icon: payload.icon,
         color: payload.color,
         actionUrl: payload.actionUrl,
-      }))
+      })),
     );
 
     // Emit real-time notification via socket for each user
@@ -75,7 +90,7 @@ export async function markNotificationAsRead(notificationId: string) {
         read: true,
         readAt: new Date(),
       },
-      { new: true }
+      { new: true },
     );
     return updated;
   } catch (error) {
@@ -94,7 +109,7 @@ export async function markAllNotificationsAsRead(userId: string) {
       {
         read: true,
         readAt: new Date(),
-      }
+      },
     );
     console.log(`✅ Marked ${result.modifiedCount} notifications as read`);
     return result;
@@ -109,17 +124,17 @@ export async function markAllNotificationsAsRead(userId: string) {
  */
 export async function getNotificationStats(userId: string) {
   try {
-    const unreadCount = await Notification.countDocuments({ 
-      userId: new mongoose.Types.ObjectId(userId), 
-      read: false 
+    const unreadCount = await Notification.countDocuments({
+      userId: new mongoose.Types.ObjectId(userId),
+      read: false,
     });
-    
+
     const typeStats = await Notification.aggregate([
-      { 
-        $match: { 
-          userId: new mongoose.Types.ObjectId(userId), 
-          read: false 
-        } 
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          read: false,
+        },
       },
       { $group: { _id: '$type', count: { $sum: 1 } } },
     ]);
@@ -144,12 +159,12 @@ export async function deleteOldNotifications(daysOld: number = 90) {
   try {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-    
+
     const result = await Notification.deleteMany({
       createdAt: { $lt: cutoffDate },
       read: true,
     });
-    
+
     console.log(`✅ Deleted ${result.deletedCount} old notifications`);
     return result;
   } catch (error) {
@@ -164,18 +179,23 @@ export async function deleteOldNotifications(daysOld: number = 90) {
 export async function notifyTeam(
   teamId: string,
   payload: Omit<NotificationPayload, 'userIds'>,
-  excludeUserId?: string
+  excludeUserId?: string,
 ) {
   try {
-    const Team = require('../models/Team.model').default;
+    // FIX: use named export from Team.model.ts
+    const { Team } = require('../models/Team.model');
+
     const team = await Team.findById(teamId).select('members');
-    
+
     if (!team) {
       throw new Error(`Team ${teamId} not found`);
     }
 
     const userIds = team.members
-      .map((member: any) => (member.userId || member)?.toString?.() || member)
+      .map(
+        (member: any) =>
+          (member.userId || member)?.toString?.() || member,
+      )
       .filter((id: string) => id && id !== excludeUserId);
 
     return createNotification({
@@ -194,12 +214,12 @@ export async function notifyTeam(
 export async function notifyProject(
   projectId: string,
   payload: Omit<NotificationPayload, 'userIds'>,
-  excludeUserId?: string
+  excludeUserId?: string,
 ) {
   try {
     const Project = require('../models/TeamProject.model').default;
     const project = await Project.findById(projectId).select('teamId');
-    
+
     if (!project) {
       throw new Error(`Project ${projectId} not found`);
     }
@@ -217,18 +237,21 @@ export async function notifyProject(
 export async function notifyTaskAssignees(
   taskId: string,
   payload: Omit<NotificationPayload, 'userIds'>,
-  excludeUserId?: string
+  excludeUserId?: string,
 ) {
   try {
     const Task = require('../models/Task.model').default;
     const task = await Task.findById(taskId).select('assignedTo');
-    
+
     if (!task) {
       throw new Error(`Task ${taskId} not found`);
     }
 
     const userIds = (task.assignedTo || [])
-      .map((assignee: any) => assignee._id?.toString?.() || assignee)
+      .map(
+        (assignee: any) =>
+          assignee._id?.toString?.() || assignee,
+      )
       .filter((id: string) => id && id !== excludeUserId);
 
     return createNotification({

@@ -1,4 +1,5 @@
 // src/types/issue.types.ts
+
 export type IssueType = 'BUG' | 'TASK' | 'STORY';
 export type IssueStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 export type IssuePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -36,13 +37,14 @@ export interface IIssue {
 export interface CreateIssuePayload {
   title: string;
   description?: string;
-  type?: IssueType;
+  type: IssueType;
+  priority: IssuePriority;
+  projectId: string;          // required
+  assignee: string | null;
+  team: string | null;
+  dueDate: string | null;
   status?: IssueStatus;
-  priority?: IssuePriority;
-  projectId: string;
-  assignee?: string | null;
-  team?: string | null;
-  dueDate?: string | null;
 }
 
+// For updates everything can be partial, including projectId, etc.
 export interface UpdateIssuePayload extends Partial<CreateIssuePayload> {}

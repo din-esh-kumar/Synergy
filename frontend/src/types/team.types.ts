@@ -35,8 +35,10 @@ export interface CreateTeamPayload {
   name: string;
   description?: string;
   leadId?: string | null;
-  memberIds?: string[];
+  memberIds: string[];
+  projectId?: string | null;  // ADD THIS LINE
 }
+
 
 export interface UpdateTeamPayload {
   name?: string;

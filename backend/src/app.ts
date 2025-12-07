@@ -1,7 +1,6 @@
 // backend/src/app.ts
 
 import express, {
-  Express,
   Application,
   Request,
   Response,
@@ -36,7 +35,7 @@ import authRoutes from './routes/auth.routes';
 import meetingsRoutes from './routes/meetings.routes';
 import projectRoutes from './routes/project.routes';
 import taskRoutes from './routes/task.routes';
-import adminUserRoutes from './routes/user.routes';
+import userRoutes from './routes/user.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import teamRoutes from './routes/teams.routes';
 import issueRoutes from './routes/issue.routes';
@@ -45,11 +44,22 @@ import chatRoutes from './routes/chat.routes';
 import documentRoutes from './routes/document.routes';
 import settingsRoutes from './routes/settings.routes';
 
+// Auth
 app.use('/api/auth', authRoutes);
+
+// Meetings / projects / tasks
 app.use('/api/meetings', meetingsRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
-app.use('/api/admin/users', adminUserRoutes);
+
+// Users
+// Generic user endpoints (for managers/employees: /api/users/...)
+app.use('/api/users', userRoutes);
+
+// Admin user management (admin panel: /api/admin/users/...)
+app.use('/api/admin/users', userRoutes);
+
+// Other feature routes
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/issues', issueRoutes);
@@ -67,6 +77,20 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
+// TEMP TEST ROUTE - for verifying socket wiring
+app.get('/test-socket', (req: Request, res: Response) => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { getIOInstance } = require('./utils/socketEmitter');
+  const io = getIOInstance();
+
+  if (io) {
+    io.emit('test-broadcast', { message: 'Socket working!' });
+    return res.json({ success: true, message: 'Broadcast sent' });
+  }
+
+  return res.status(500).json({ error: 'Socket not initialized' });
+});
+
 // Error handling middleware – must have 4 params
 app.use(
   (err: any, req: Request, res: Response, next: NextFunction) => {
@@ -81,21 +105,6 @@ app.use(
     });
   },
 );
-
-
-// TEMP TEST ROUTE - add to app.ts
-app.get('/test-socket', (req, res) => {
-  const { getIOInstance } = require('./utils/socketEmitter');
-  const io = getIOInstance();
-  if (io) {
-    io.emit('test-broadcast', { message: 'Socket working!' });
-    res.json({ success: true, message: 'Broadcast sent' });
-  } else {
-    res.status(500).json({ error: 'Socket not initialized' });
-  }
-});
-
-
 
 // 404 handler (placed AFTER routes, BEFORE export)
 app.use((req: Request, res: Response) => {

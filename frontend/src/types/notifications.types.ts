@@ -1,4 +1,3 @@
-// src/types/notifications.types.ts
 export type NotificationType =
   | 'meeting'
   | 'meetinginvite'
@@ -7,6 +6,11 @@ export type NotificationType =
   | 'meetingreminder'
   | 'task'
   | 'project'
+  | 'issue'
+  | 'message'
+  | 'teaminvite'
+  | 'fileshared'
+  | 'call'
   | 'system'
   | 'update'
   | 'approval';
@@ -15,8 +19,14 @@ export interface NotificationData {
   meetingId?: string;
   taskId?: string;
   projectId?: string;
+  issueId?: string;
+  teamId?: string;
+  chatId?: string;
+  messageId?: string;
   meetingTitle?: string;
   senderName?: string;
+  fileName?: string;
+  callLink?: string;
   [key: string]: any;
 }
 
@@ -35,6 +45,7 @@ export interface Notification {
 
 export interface NotificationPayload {
   userId: string;
+  senderId?: string;   // ✅ CRITICAL FIX
   type: NotificationType;
   title: string;
   message: string;

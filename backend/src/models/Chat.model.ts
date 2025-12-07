@@ -1,31 +1,26 @@
-// backend/src/models/Chat.model.ts
-import mongoose, { Schema, Document } from 'mongoose';
+// src/models/Chat.model.ts
 
-export interface ChatMessage extends Document {
+import { Schema, model, Document } from 'mongoose';
+
+interface IChat extends Document {
   content: string;
-  sender: mongoose.Types.ObjectId;
-  teamId?: mongoose.Types.ObjectId;
-  projectId?: mongoose.Types.ObjectId;
-  taskId?: mongoose.Types.ObjectId;
-  toUserId?: mongoose.Types.ObjectId; // ✅ direct DM target
-  attachments: {
-    filename: string;
-    url: string;
-    fileType: string;
-    size: number;
-  }[];
-  mentions: mongoose.Types.ObjectId[];
-  reactions: Map<string, mongoose.Types.ObjectId[]>;
+  sender: any;
+  teamId?: any;
+  projectId?: any;
+  taskId?: any;
+  toUserId?: any;
+  attachments?: any[];
+  mentions?: any[];
+  editedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const ChatSchema = new Schema<ChatMessage>(
+const ChatSchema = new Schema(
   {
     content: {
       type: String,
-      required: [true, 'Message content is required'],
-      trim: true,
+      required: true,
     },
     sender: {
       type: Schema.Types.ObjectId,
@@ -47,13 +42,12 @@ const ChatSchema = new Schema<ChatMessage>(
     toUserId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-    }, // ✅ DM partner
+    },
     attachments: [
       {
-        filename: String,
+        name: String,
         url: String,
-        fileType: String,
-        size: Number,
+        type: String,
       },
     ],
     mentions: [
@@ -62,23 +56,9 @@ const ChatSchema = new Schema<ChatMessage>(
         ref: 'User',
       },
     ],
-    reactions: {
-      type: Map,
-      of: [Schema.Types.ObjectId],
-      default: new Map(),
-    },
+    editedAt: Date,
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true }
 );
 
-// Index for faster queries
-ChatSchema.index({ teamId: 1, createdAt: -1 });
-ChatSchema.index({ projectId: 1, createdAt: -1 });
-ChatSchema.index({ taskId: 1, createdAt: -1 });
-// Optional index for DMs
-ChatSchema.index({ toUserId: 1, createdAt: -1 });
-
-const Chat = mongoose.model<ChatMessage>('Chat', ChatSchema);
-export default Chat;
+export default model<IChat>('Chat', ChatSchema);

@@ -11,8 +11,10 @@ import {
 
 const router = Router();
 
+// All issue routes require an authenticated user (EMPLOYEE / MANAGER / ADMIN)
 router.use(authenticateUser);
 
+// Any authenticated user can raise, read, update, and delete issues
 router.post('/', createIssue);
 router.get('/', getIssues);
 router.get('/:id', getIssueById);

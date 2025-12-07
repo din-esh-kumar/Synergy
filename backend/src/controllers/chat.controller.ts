@@ -1,10 +1,11 @@
 // src/controllers/chat.controller.ts
+
 import { Request, Response } from 'express';
 import Chat from '../models/Chat.model';
 import { createNotification } from '../utils/notificationEngine';
-import { emitChatMessage } from '../utils/socketEmitter';
+import { emitToRoom } from '../utils/socketEmitter';
 
-// SEND MESSAGE
+// ============ SEND MESSAGE ============
 export async function sendMessage(req: Request, res: Response) {
   try {
     const {
@@ -12,10 +13,11 @@ export async function sendMessage(req: Request, res: Response) {
       teamId,
       projectId,
       taskId,
-      toUserId,      // NEW: direct message target
+      toUserId,
       attachments,
       mentions,
     } = req.body;
+
     const userId = (req as any).userId;
 
     if (!content && (!attachments || attachments.length === 0)) {
@@ -35,7 +37,6 @@ export async function sendMessage(req: Request, res: Response) {
       roomId = `task-${taskId}`;
       roomType = 'task';
     } else if (toUserId) {
-      // direct chat between two users (sorted to keep room stable)
       const ids = [userId.toString(), toUserId.toString()].sort().join('-');
       roomId = `dm-${ids}`;
       roomType = 'direct';
@@ -51,28 +52,31 @@ export async function sendMessage(req: Request, res: Response) {
       teamId,
       projectId,
       taskId,
-      toUserId,     // store who the DM is to (optional in schema)
+      toUserId,
       attachments,
       mentions,
     });
 
     await message.populate('sender', 'name email avatar');
 
-    emitChatMessage(roomId, message);
+    // ✅ EMIT TO SOCKET ROOM
+    emitToRoom(roomId, 'chat:message_received', message);
 
-    // notifications for mentions
+    // ✅ CREATE MENTIONS NOTIFICATIONS (persist + socket via notificationEngine)
     if (mentions && mentions.length > 0) {
       await createNotification({
-        userIds: mentions,
-        type: roomType as any,
+        userIds: mentions.filter((id: string) => id !== userId),
+        type: 'chat', // stored as 'chat' notifications
         action: 'mentioned',
         title:
           roomType === 'direct'
             ? 'You were mentioned in a direct message'
             : `You were mentioned in ${roomType} chat`,
-        message: `${content.substring(0, 50)}...`,
+        message: (content || '').substring(0, 50) + '...',
         entityType: roomType,
         entityId: teamId || projectId || taskId || toUserId,
+        icon: 'chat',
+        color: '#3b82f6',
       });
     }
 
@@ -83,17 +87,12 @@ export async function sendMessage(req: Request, res: Response) {
   }
 }
 
-// GET MESSAGES
+// ============ GET MESSAGES ============
 export async function getMessages(req: Request, res: Response) {
   try {
-    const {
-      teamId,
-      projectId,
-      taskId,
-      toUserId,        // NEW: direct messages
-      limit = 50,
-      skip = 0,
-    } = req.query as any;
+    const { teamId, projectId, taskId, toUserId, limit = 50, skip = 0 } =
+      req.query as any;
+
     const userId = (req as any).userId;
 
     const query: any = {};
@@ -101,9 +100,7 @@ export async function getMessages(req: Request, res: Response) {
     if (teamId) query.teamId = teamId;
     if (projectId) query.projectId = projectId;
     if (taskId) query.taskId = taskId;
-
     if (toUserId) {
-      // fetch DM between current user and toUserId
       query.$or = [
         { sender: userId, toUserId },
         { sender: toUserId, toUserId: userId },
@@ -131,13 +128,14 @@ export async function getMessages(req: Request, res: Response) {
   }
 }
 
-// DELETE MESSAGE
+// ============ DELETE MESSAGE ============
 export async function deleteMessage(req: Request, res: Response) {
   try {
     const { messageId } = req.params;
     const userId = (req as any).userId;
 
     const message = await Chat.findById(messageId);
+
     if (!message) {
       return res.status(404).json({ error: 'Message not found' });
     }
@@ -146,7 +144,22 @@ export async function deleteMessage(req: Request, res: Response) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
+    // ✅ DETERMINE ROOM BEFORE DELETION
+    let roomId = '';
+    if (message.teamId) roomId = `team-${message.teamId}`;
+    else if (message.projectId) roomId = `project-${message.projectId}`;
+    else if (message.taskId) roomId = `task-${message.taskId}`;
+    else if (message.toUserId) {
+      const ids = [userId.toString(), message.toUserId.toString()]
+        .sort()
+        .join('-');
+      roomId = `dm-${ids}`;
+    }
+
     await Chat.findByIdAndDelete(messageId);
+
+    // ✅ EMIT DELETION EVENT TO ROOM
+    emitToRoom(roomId, 'chat:message_deleted', { messageId });
 
     res.json({ success: true, message: 'Message deleted' });
   } catch (error) {
@@ -155,7 +168,7 @@ export async function deleteMessage(req: Request, res: Response) {
   }
 }
 
-// EDIT MESSAGE
+// ============ EDIT MESSAGE ============
 export async function editMessage(req: Request, res: Response) {
   try {
     const { messageId } = req.params;
@@ -163,6 +176,7 @@ export async function editMessage(req: Request, res: Response) {
     const userId = (req as any).userId;
 
     const message = await Chat.findById(messageId);
+
     if (!message) {
       return res.status(404).json({ error: 'Message not found' });
     }
@@ -171,8 +185,24 @@ export async function editMessage(req: Request, res: Response) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
+    // ✅ DETERMINE ROOM
+    let roomId = '';
+    if (message.teamId) roomId = `team-${message.teamId}`;
+    else if (message.projectId) roomId = `project-${message.projectId}`;
+    else if (message.taskId) roomId = `task-${message.taskId}`;
+    else if (message.toUserId) {
+      const ids = [userId.toString(), message.toUserId.toString()]
+        .sort()
+        .join('-');
+      roomId = `dm-${ids}`;
+    }
+
     message.content = content;
+    message.editedAt = new Date();
     await message.save();
+
+    // ✅ EMIT EDIT EVENT TO ROOM
+    emitToRoom(roomId, 'chat:message_edited', message);
 
     res.json(message);
   } catch (error) {
