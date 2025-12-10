@@ -1,0 +1,74 @@
+/* dashboard.css - EMS-like card/grid helpers */
+
+/* Grid for stat widgets (responsive) */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}
+
+/* Card base */
+.dashboard-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.03);
+}
+
+/* Stats inside colored cards */
+.dashboard-card.text-white {
+  color: #fff;
+}
+
+/* Widget inner layout */
+.dashboard-widget {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Icon container */
+.widget-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+}
+
+/* Quick stat items */
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 8px 0;
+}
+
+.stat-item:last-child {
+  border-bottom: none;
+}
+
+/* Stat value */
+.stat-value {
+  font-weight: 700;
+}
+
+/* Small utility */
+.mb-4 {
+  margin-bottom: 1rem;
+}

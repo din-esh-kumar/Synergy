@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    /* From File 1 */
+    "composite": true,
+    "allowSyntheticDefaultImports": true,
+
+    /* From File 2 */
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+
+    /* Common (present in both) */
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+
+    /* Bundler mode (from File 2) */
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting (from File 2) */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+
+  /* Common include (present in both) */
+  "include": ["vite.config.ts"]
+}
