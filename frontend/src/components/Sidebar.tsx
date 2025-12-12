@@ -1,148 +1,179 @@
+// src/components/Layout/Sidebar.tsx - UPDATED WITH EMS NAVIGATION
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import {
-  Home,
-  Calendar,
-  CheckSquare,
-  Briefcase,
-  Users,
-  Settings,
-  LogOut,
-  MessageCircle,
-  Bell,
-} from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useNotifications } from '../context/NotificationContext';
+import {
+  HomeIcon,
+  UsersIcon,
+  FolderIcon,
+  CheckSquareIcon,
+  AlertCircleIcon,
+  CalendarIcon,
+  MessageSquareIcon,
+  BellIcon,
+  SettingsIcon,
+  // EMS Icons (New)
+  CalendarDaysIcon,
+  CreditCardIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  FileTextIcon,
+  ShieldCheckIcon
+} from 'lucide-react';
 
-interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+const Sidebar: React.FC = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+  const isManager = user?.role === 'MANAGER' || isAdmin;
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user, logout } = useAuth();
-  const { unreadCount } = useNotifications();
-  const location = useLocation();
-
-  const menuItems = [
-    { path: '/dashboard', icon: Home, label: 'Dashboard', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/meetings', icon: Calendar, label: 'Meetings', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/tasks', icon: CheckSquare, label: 'Tasks', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/projects', icon: Briefcase, label: 'Projects', roles: ['ADMIN', 'MANAGER'] },
-    { path: '/issues', icon: CheckSquare, label: 'Issues', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/teams', icon: Users, label: 'Teams', roles: ['ADMIN', 'MANAGER'] },
-    { path: '/admin/users', icon: Users, label: 'User', roles: ['ADMIN'] },
+  const synergyNavItems = [
+    { path: '/dashboard', icon: HomeIcon, label: 'Dashboard', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/teams', icon: UsersIcon, label: 'Teams', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/projects', icon: FolderIcon, label: 'Projects', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/tasks', icon: CheckSquareIcon, label: 'Tasks', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/issues', icon: AlertCircleIcon, label: 'Issues', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/meetings', icon: CalendarIcon, label: 'Meetings', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/messages', icon: MessageSquareIcon, label: 'Messages', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
   ];
 
-  const filteredMenuItems = menuItems.filter((item) => item.roles.includes(user?.role || 'EMPLOYEE'));
-  const isActive = (path: string) => location.pathname === path;
+  const emsNavItems = [
+    { path: '/leaves', icon: CalendarDaysIcon, label: 'Leaves', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/expenses', icon: CreditCardIcon, label: 'Expenses', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/timesheets', icon: ClockIcon, label: 'Timesheets', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/approvals', icon: CheckCircleIcon, label: 'Approvals', roles: ['ADMIN', 'MANAGER'], badge: true },
+  ];
+
+  const adminNavItems = [
+    { path: '/admin/users', icon: ShieldCheckIcon, label: 'User Management', roles: ['ADMIN', 'MANAGER'] },
+    { path: '/admin/ems', icon: SettingsIcon, label: 'EMS Settings', roles: ['ADMIN'] },
+    { path: '/export', icon: FileTextIcon, label: 'Export Data', roles: ['ADMIN', 'MANAGER'] },
+  ];
+
+  const generalNavItems = [
+    { path: '/notifications', icon: BellIcon, label: 'Notifications', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/settings', icon: SettingsIcon, label: 'Settings', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+  ];
+
+  const canAccess = (roles: string[]) => {
+    return roles.includes(user?.role || '');
+  };
 
   return (
-    <>
-      {isOpen && <div className="fixed inset-0 bg-black bg-opacity-50 lg:hidden z-40" onClick={onClose} />}
+    <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto">
+      <div className="p-4">
+        <h2 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-8">
+          Synergy
+        </h2>
 
-      <aside
-        className={`fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-white text-slate-900 dark:bg-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700 transition-transform duration-300 z-50 lg:static lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <div className="flex flex-col h-full p-4">
-          <div className="flex items-center justify-between mb-6 lg:hidden">
-            <h2 className="text-xl font-bold">Menu</h2>
-            <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-              <span className="sr-only">Close</span>
-            </button>
-          </div>
-
-          <nav className="flex-1 space-y-1">
-            {filteredMenuItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.path);
-              return (
-                <Link
+        {/* SYNERGY SECTION */}
+        <nav className="space-y-1">
+          <div className="mb-4">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              Project Management
+            </h3>
+            {synergyNavItems.map((item) =>
+              canAccess(item.roles) ? (
+                <NavLink
                   key={item.path}
                   to={item.path}
-                  onClick={() => onClose()}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    active
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-2 text-sm rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300'
+                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                    }`
+                  }
                 >
-                  <Icon size={20} />
-                  <span className="font-medium">{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+                  <item.icon className="w-5 h-5 mr-3" />
+                  {item.label}
+                </NavLink>
+              ) : null
+            )}
+          </div>
 
-          {/* Messages, Chat, Notifications & Settings */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
-            {/* Messages */}
-            <Link
-              to="/messages"
-              onClick={() => onClose()}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive('/messages')
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              <MessageCircle size={20} />
-              <span className="font-medium">Messages</span>
-            </Link>
+          {/* EMS SECTION (NEW) */}
+          <div className="mb-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              Employee Management
+            </h3>
+            {emsNavItems.map((item) =>
+              canAccess(item.roles) ? (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `flex items-center justify-between px-4 py-2 text-sm rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300'
+                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                    }`
+                  }
+                >
+                  <div className="flex items-center">
+                    <item.icon className="w-5 h-5 mr-3" />
+                    {item.label}
+                  </div>
+                  {item.badge && isManager && (
+                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                      New
+                    </span>
+                  )}
+                </NavLink>
+              ) : null
+            )}
+          </div>
 
-
-            {/* Notifications */}
-            <Link
-              to="/notifications"
-              onClick={() => onClose()}
-              className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
-            >
-              <Bell size={20} />
-              <span className="font-medium">Notifications</span>
-              {unreadCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
+          {/* ADMIN SECTION */}
+          {isManager && (
+            <div className="mb-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                Administration
+              </h3>
+              {adminNavItems.map((item) =>
+                canAccess(item.roles) ? (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) =>
+                      `flex items-center px-4 py-2 text-sm rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300'
+                          : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                      }`
+                    }
+                  >
+                    <item.icon className="w-5 h-5 mr-3" />
+                    {item.label}
+                  </NavLink>
+                ) : null
               )}
-            </Link>
-
-            {/* Settings */}
-            <Link
-              to="/settings"
-              onClick={() => onClose()}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive('/settings')
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              <Settings size={20} />
-              <span className="font-medium">Settings</span>
-            </Link>
-          </div>
-
-          {/* User Info & Logout */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2 mt-auto">
-            <div className="px-4 py-2">
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">{user?.name}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{user?.role}</p>
             </div>
-            <button
-              onClick={() => {
-                logout();
-                onClose();
-              }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-            >
-              <LogOut size={20} />
-              <span className="font-medium">Logout</span>
-            </button>
+          )}
+
+          {/* GENERAL SECTION */}
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            {generalNavItems.map((item) =>
+              canAccess(item.roles) ? (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-2 text-sm rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300'
+                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                    }`
+                  }
+                >
+                  <item.icon className="w-5 h-5 mr-3" />
+                  {item.label}
+                </NavLink>
+              ) : null
+            )}
           </div>
-        </div>
-      </aside>
-    </>
+        </nav>
+      </div>
+    </aside>
   );
 };
 

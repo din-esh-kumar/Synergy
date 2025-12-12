@@ -20,5 +20,5 @@
     "types": ["node", "express"]
   },
 
-  "include": ["src/**/*", "src/types/**/*"]
+  "include": ["src/**/*", "src/types/**/*", "../frontend/src/services/timesheet.service.ts", "../frontend/src/services/leave.service.ts", "../frontend/src/services/expense.service.ts", "../frontend/src/services/approval.service.ts"]
 }
