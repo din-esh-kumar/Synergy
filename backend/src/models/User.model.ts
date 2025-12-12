@@ -5,16 +5,17 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+  role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE' | 'INTERN';
   phone?: string;
   designation?: string;
-  status: boolean;           // active / inactive
-  avatar?: string;           // URL of profile picture
+  status: boolean;
+  avatar?: string;
+  managerId?: Types.ObjectId; //
   createdAt: Date;
   updatedAt: Date;
 }
 
-const userSchema = new Schema<IUser>(
+const userSchema = new Schema(
   {
     name: {
       type: String,
@@ -34,7 +35,7 @@ const userSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ['ADMIN', 'MANAGER', 'EMPLOYEE'],
+      enum: ['ADMIN', 'MANAGER', 'EMPLOYEE', 'INTERN'], // ✅ Added INTERN
       default: 'EMPLOYEE',
     },
     phone: {
@@ -52,6 +53,11 @@ const userSchema = new Schema<IUser>(
     avatar: {
       type: String,
       default: '',
+    },
+    managerId: { // ✅ Added manager relationship
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
   },
   { timestamps: true }
