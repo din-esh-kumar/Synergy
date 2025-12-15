@@ -4,6 +4,10 @@ dist/
 npm-debug.log
 .DS_Store
 package-lock.json
+# Environment files
 .env
+.env.*
+backend/.env
+frontend/.env
 coverage/
 *.log
