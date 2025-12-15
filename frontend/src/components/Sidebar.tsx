@@ -1,179 +1,200 @@
-// src/components/Layout/Sidebar.tsx - UPDATED WITH EMS NAVIGATION
+// src/components/Sidebar.tsx
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  HomeIcon,
-  UsersIcon,
-  FolderIcon,
-  CheckSquareIcon,
-  AlertCircleIcon,
-  CalendarIcon,
-  MessageSquareIcon,
-  BellIcon,
-  SettingsIcon,
-  // EMS Icons (New)
-  CalendarDaysIcon,
-  CreditCardIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  FileTextIcon,
-  ShieldCheckIcon
+  Home,
+  Users,
+  Folder,
+  CheckSquare,
+  AlertCircle,
+  Calendar,
+  MessageSquare,
+  Bell,
+  Settings,
+  CalendarDays,
+  CreditCard,
+  Clock,
+  CheckCircle,
+  Shield,
+  X,
 } from 'lucide-react';
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
-  const isManager = user?.role === 'MANAGER' || isAdmin;
 
   const synergyNavItems = [
-    { path: '/dashboard', icon: HomeIcon, label: 'Dashboard', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/teams', icon: UsersIcon, label: 'Teams', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/projects', icon: FolderIcon, label: 'Projects', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/tasks', icon: CheckSquareIcon, label: 'Tasks', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/issues', icon: AlertCircleIcon, label: 'Issues', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/meetings', icon: CalendarIcon, label: 'Meetings', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/messages', icon: MessageSquareIcon, label: 'Messages', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/dashboard', icon: Home, label: 'Dashboard', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/teams', icon: Users, label: 'Teams', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/projects', icon: Folder, label: 'Projects', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/tasks', icon: CheckSquare, label: 'Tasks', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/issues', icon: AlertCircle, label: 'Issues', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/meetings', icon: Calendar, label: 'Meetings', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/messages', icon: MessageSquare, label: 'Messages', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
   ];
 
   const emsNavItems = [
-    { path: '/leaves', icon: CalendarDaysIcon, label: 'Leaves', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/expenses', icon: CreditCardIcon, label: 'Expenses', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/timesheets', icon: ClockIcon, label: 'Timesheets', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/approvals', icon: CheckCircleIcon, label: 'Approvals', roles: ['ADMIN', 'MANAGER'], badge: true },
+    { path: '/leaves', icon: CalendarDays, label: 'Leaves', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/expenses', icon: CreditCard, label: 'Expenses', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/timesheets', icon: Clock, label: 'Timesheets', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/approvals', icon: CheckCircle, label: 'Approvals', roles: ['ADMIN', 'MANAGER'] },
   ];
 
   const adminNavItems = [
-    { path: '/admin/users', icon: ShieldCheckIcon, label: 'User Management', roles: ['ADMIN', 'MANAGER'] },
-    { path: '/admin/ems', icon: SettingsIcon, label: 'EMS Settings', roles: ['ADMIN'] },
-    { path: '/export', icon: FileTextIcon, label: 'Export Data', roles: ['ADMIN', 'MANAGER'] },
+    { path: '/admin', icon: Shield, label: 'Admin Panel', roles: ['ADMIN'] },
   ];
 
   const generalNavItems = [
-    { path: '/notifications', icon: BellIcon, label: 'Notifications', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-    { path: '/settings', icon: SettingsIcon, label: 'Settings', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/notifications', icon: Bell, label: 'Notifications', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    { path: '/settings', icon: Settings, label: 'Settings', roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
   ];
 
-  const canAccess = (roles: string[]) => {
-    return roles.includes(user?.role || '');
-  };
+  const canAccess = (roles: string[]) => roles.includes(user?.role || '');
 
   return (
-    <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-y-auto">
-      <div className="p-4">
-        <h2 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-8">
-          Synergy
-        </h2>
+    <>
+      {/* Overlay for mobile */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={onClose}
+        />
+      )}
 
-        {/* SYNERGY SECTION */}
-        <nav className="space-y-1">
-          <div className="mb-4">
-            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Project Management
-            </h3>
-            {synergyNavItems.map((item) =>
-              canAccess(item.roles) ? (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={({ isActive }) =>
-                    `flex items-center px-4 py-2 text-sm rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300'
-                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-                    }`
-                  }
-                >
-                  <item.icon className="w-5 h-5 mr-3" />
-                  {item.label}
-                </NavLink>
-              ) : null
-            )}
+      {/* Sidebar */}
+      <aside
+        className={`fixed md:sticky top-0 left-0 h-screen w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-50 transform transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        <div className="flex flex-col h-full">
+          {/* Sidebar Header */}
+          <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Navigation</h2>
+            <button
+              onClick={onClose}
+              className="md:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+            </button>
           </div>
 
-          {/* EMS SECTION (NEW) */}
-          <div className="mb-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Employee Management
-            </h3>
-            {emsNavItems.map((item) =>
-              canAccess(item.roles) ? (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={({ isActive }) =>
-                    `flex items-center justify-between px-4 py-2 text-sm rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300'
-                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-                    }`
-                  }
-                >
-                  <div className="flex items-center">
-                    <item.icon className="w-5 h-5 mr-3" />
-                    {item.label}
-                  </div>
-                  {item.badge && isManager && (
-                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                      New
-                    </span>
-                  )}
-                </NavLink>
-              ) : null
-            )}
-          </div>
-
-          {/* ADMIN SECTION */}
-          {isManager && (
-            <div className="mb-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                Administration
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto p-4 space-y-6">
+            {/* Synergy Section */}
+            <div>
+              <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                Project Management
               </h3>
-              {adminNavItems.map((item) =>
-                canAccess(item.roles) ? (
+              <div className="space-y-1">
+                {synergyNavItems.filter(item => canAccess(item.roles)).map((item) => (
                   <NavLink
                     key={item.path}
                     to={item.path}
+                    onClick={onClose}
                     className={({ isActive }) =>
-                      `flex items-center px-4 py-2 text-sm rounded-lg transition-colors ${
+                      `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                         isActive
-                          ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300'
-                          : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                       }`
                     }
                   >
-                    <item.icon className="w-5 h-5 mr-3" />
-                    {item.label}
+                    <item.icon className="w-5 h-5" />
+                    <span className="font-medium">{item.label}</span>
                   </NavLink>
-                ) : null
-              )}
+                ))}
+              </div>
             </div>
-          )}
 
-          {/* GENERAL SECTION */}
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-            {generalNavItems.map((item) =>
-              canAccess(item.roles) ? (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={({ isActive }) =>
-                    `flex items-center px-4 py-2 text-sm rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300'
-                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-                    }`
-                  }
-                >
-                  <item.icon className="w-5 h-5 mr-3" />
-                  {item.label}
-                </NavLink>
-              ) : null
+            {/* EMS Section */}
+            <div>
+              <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                Employee Management
+              </h3>
+              <div className="space-y-1">
+                {emsNavItems.filter(item => canAccess(item.roles)).map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={onClose}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      }`
+                    }
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="font-medium">{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+
+            {/* Admin Section */}
+            {canAccess(['ADMIN']) && (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                  Administration
+                </h3>
+                <div className="space-y-1">
+                  {adminNavItems.map((item) => (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                          isActive
+                            ? 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`
+                      }
+                    >
+                      <item.icon className="w-5 h-5" />
+                      <span className="font-medium">{item.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
             )}
-          </div>
-        </nav>
-      </div>
-    </aside>
+
+            {/* General Section */}
+            <div>
+              <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                General
+              </h3>
+              <div className="space-y-1">
+                {generalNavItems.filter(item => canAccess(item.roles)).map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={onClose}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      }`
+                    }
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="font-medium">{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          </nav>
+        </div>
+      </aside>
+    </>
   );
 };
 

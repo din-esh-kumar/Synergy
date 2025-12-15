@@ -1,51 +1,66 @@
 // src/services/timesheet.service.ts - TIMESHEET DATA ACCESS
-import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import api from './api';
 
 // Employee Timesheet Services
+
 export const createTimesheet = async (timesheetData: any) => {
-  const response = await axios.post(`${API_URL}/timesheets`, timesheetData);
+  const response = await api.post('/timesheets', timesheetData);
   return response.data;
 };
 
 export const getMyTimesheets = async (filters?: any) => {
-  const response = await axios.get(`${API_URL}/timesheets/my-timesheets`, { params: filters });
+  const response = await api.get('/timesheets/my-timesheets', {
+    params: filters,
+  });
   return response.data;
 };
 
 export const getTimesheetById = async (id: string) => {
-  const response = await axios.get(`${API_URL}/timesheets/${id}`);
+  const response = await api.get(`/timesheets/${id}`);
   return response.data;
 };
 
 export const updateTimesheet = async (id: string, timesheetData: any) => {
-  const response = await axios.put(`${API_URL}/timesheets/${id}`, timesheetData);
+  const response = await api.put(`/timesheets/${id}`, timesheetData);
   return response.data;
 };
 
 export const deleteTimesheet = async (id: string) => {
-  const response = await axios.delete(`${API_URL}/timesheets/${id}`);
+  const response = await api.delete(`/timesheets/${id}`);
   return response.data;
 };
 
 export const submitTimesheet = async (id: string) => {
-  const response = await axios.post(`${API_URL}/timesheets/${id}/submit`);
+  const response = await api.post(`/timesheets/${id}/submit`);
   return response.data;
 };
 
-// Admin/Manager Timesheet Services
+// Admin / Manager Timesheet Services
+
 export const getAllTimesheets = async (filters?: any) => {
-  const response = await axios.get(`${API_URL}/timesheets/admin/all`, { params: filters });
+  const response = await api.get('/timesheets/admin/all', {
+    params: filters,
+  });
   return response.data;
 };
 
 export const approveTimesheet = async (id: string) => {
-  const response = await axios.put(`${API_URL}/timesheets/admin/${id}/approve`);
+  const response = await api.put(`/timesheets/admin/${id}/approve`);
   return response.data;
 };
 
 export const rejectTimesheet = async (id: string, rejectionReason: string) => {
-  const response = await axios.put(`${API_URL}/timesheets/admin/${id}/reject`, { rejectionReason });
+  const response = await api.put(`/timesheets/admin/${id}/reject`, {
+    rejectionReason,
+  });
+  return response.data;
+};
+
+// Optional: stats for dashboard widgets
+export const getTimesheetStats = async (startDate?: string, endDate?: string) => {
+  const response = await api.get('/timesheets/admin/stats', {
+    params: { startDate, endDate },
+  });
   return response.data;
 };

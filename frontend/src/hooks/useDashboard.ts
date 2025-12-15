@@ -1,10 +1,21 @@
+// src/hooks/useDashboard.ts
 import { useState, useEffect, useCallback } from 'react';
-import dashboardService from '../services/dashboard.service';
-import { DashboardData, DashboardStats } from '../types/meetings.types';
+import dashboardService, {
+  NormalizedDashboardData,
+} from '../services/dashboard.service';
+import { DashboardStats } from '../types/dashboard.types';
+
+interface DashboardData {
+  stats: DashboardStats;
+  upcomingMeetings: any[];
+  recentTasks: any[];
+}
 
 export const useDashboard = () => {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [stats, setStats] = useState<DashboardStats>({});
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(
+    null,
+  );
+  const [stats, setStats] = useState<DashboardStats>({} as DashboardStats);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -12,17 +23,22 @@ export const useDashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const statsData = await dashboardService.getDashboardStats();
-      
+      const payload: NormalizedDashboardData =
+        await dashboardService.getDashboardStats();
+
+      const statsData = payload.stats;
+
       const data: DashboardData = {
         stats: statsData,
-        recentTasks: [],
+        upcomingMeetings: payload.upcomingMeetings || [],
+        recentTasks: payload.recentTasks || [],
       };
-      
+
       setStats(statsData);
       setDashboardData(data);
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || 'Failed to fetch dashboard data';
+      const errorMsg =
+        err?.response?.data?.message || 'Failed to fetch dashboard data';
       setError(errorMsg);
     } finally {
       setLoading(false);
@@ -31,7 +47,6 @@ export const useDashboard = () => {
 
   useEffect(() => {
     fetchDashboard();
-    // Auto-refresh every minute
     const interval = setInterval(fetchDashboard, 60000);
     return () => clearInterval(interval);
   }, [fetchDashboard]);

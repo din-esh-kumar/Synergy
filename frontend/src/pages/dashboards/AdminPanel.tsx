@@ -1,247 +1,534 @@
-// src/pages/EMS/Admin/AdminPanel.tsx - COMPLETE ADMIN DASHBOARD
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { useLeaves } from '../../../hooks/useLeaves';
-import { useExpenses } from '../../../hooks/useExpenses';
-import { useTimesheets } from '../../../hooks/useTimesheets';
+// src/pages/dashboards/AdminPanel.tsx
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  UsersIcon,
-  CalendarDaysIcon,
-  CreditCardIcon,
-  ClockIcon,
-  FileTextIcon,
-  BarChart3Icon
+  Shield,
+  Download,
+  Users,
+  Tag,
+  Calendar,
+  Scale,
+  FileText,
+  LucideIcon,
 } from 'lucide-react';
+
+import UserManagementTable from '../../components/admin/UserManagementTable';
+import LeaveTypesManagementTable from '../../components/admin/LeaveTypesManagementTable';
+import HolidaysManagementTable from '../../components/admin/HolidaysManagementTable';
+import LeaveBalancesManagementTable from '../../components/admin/LeaveBalancesManagementTable';
+import LeaveApplicationsOverview from '../../components/admin/LeaveApplicationsOverview';
+import ExportPage from '../../components/admin/ExportPage';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
+
+interface Tab {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  description: string;
+}
+
+const TABS: Tab[] = [
+  {
+    key: 'users',
+    label: 'Users',
+    icon: Users,
+    description:
+      'Add, delete, activate/deactivate, and promote users by changing roles.',
+  },
+  {
+    key: 'leave-types',
+    label: 'Leave Types',
+    icon: Tag,
+    description: 'Configure leave types used across the organization.',
+  },
+  {
+    key: 'holidays',
+    label: 'Holidays',
+    icon: Calendar,
+    description: 'Create and manage company holidays.',
+  },
+  {
+    key: 'leave-balances',
+    label: 'Leave Balances',
+    icon: Scale,
+    description: 'View and adjust employee leave balances.',
+  },
+  {
+    key: 'leave-applications',
+    label: 'Leave Applications',
+    icon: FileText,
+    description: 'Full overview and CRUD on leave applications.',
+  },
+  {
+    key: 'export',
+    label: 'Export',
+    icon: Download,
+    description: 'Export timesheets, leaves, and expenses data.',
+  },
+];
 
 const AdminPanel: React.FC = () => {
   const { user } = useAuth();
-  const { fetchLeaveStatistics, fetchAllLeaves } = useLeaves();
-  const { fetchAllExpenses, fetchExpenseStats } = useExpenses();
-  const { fetchAllTimesheets } = useTimesheets();
-
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    pendingLeaves: 0,
-    pendingExpenses: 0,
-    pendingTimesheets: 0,
-    totalAmount: 0
-  });
-
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadAdminStats();
-  }, []);
+    const checkAccess = () => {
+      if (!user) {
+        setIsLoading(true);
+        return;
+      }
 
-  const loadAdminStats = async () => {
-    setLoading(true);
-    try {
-      const [leaveStats, expenseStats, timesheets, expenses] = await Promise.all([
-        fetchLeaveStatistics(),
-        fetchExpenseStats(),
-        fetchAllTimesheets({ status: 'SUBMITTED' }),
-        fetchAllExpenses({ status: 'PENDING' })
-      ]);
+      if (user.role !== 'ADMIN') {
+        toast.error('Access denied. Admin privileges required.');
+        navigate('/');
+        return;
+      }
 
-      setStats({
-        totalUsers: user?.role === 'ADMIN' ? 25 : 10, // Mock for demo
-        pendingLeaves: leaveStats.data?.byStatus?.find((s: any) => s._id === 'PENDING')?.count || 0,
-        pendingExpenses: expenses.data?.length || 0,
-        pendingTimesheets: timesheets.data?.length || 0,
-        totalAmount: expenseStats.data?.byStatus?.reduce((sum: number, stat: any) => sum + stat.totalAmount, 0) || 0
-      });
-    } catch (error) {
-      console.error('Error loading admin stats:', error);
-    } finally {
-      setLoading(false);
+      setIsLoading(false);
+    };
+
+    checkAccess();
+  }, [user, navigate]);
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 0:
+        return <UserManagementTable />;
+      case 1:
+        return <LeaveTypesManagementTable />;
+      case 2:
+        return <HolidaysManagementTable />;
+      case 3:
+        return <LeaveBalancesManagementTable />;
+      case 4:
+        return <LeaveApplicationsOverview />;
+      case 5:
+        return <ExportPage />;
+      default:
+        return <UserManagementTable />;
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4" />
+          <p className="text-slate-600 dark:text-slate-400 text-lg">
+            Checking permissions...
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
-          Manage employee requests and system settings
-        </p>
-      </div>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      <div className="max-w-[1600px] mx-auto p-4 sm:p-6 space-y-6">
+        {/* Header */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Shield className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+                  Admin Panel
+                </h1>
+                <p className="text-slate-600 dark:text-slate-400 mt-1">
+                  {TABS[activeTab].description}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveTab(5)}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-md hover:shadow-lg"
+            >
+              <Download className="w-5 h-5" />
+              <span className="font-medium">Export</span>
+            </button>
+          </div>
+        </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-        <StatCard
-          title="Total Users"
-          value={stats.totalUsers}
-          icon={UsersIcon}
-          color="bg-indigo-500"
-        />
-        <StatCard
-          title="Pending Leaves"
-          value={stats.pendingLeaves}
-          icon={CalendarDaysIcon}
-          color="bg-orange-500"
-          href="/leaves"
-        />
-        <StatCard
-          title="Pending Expenses"
-          value={stats.pendingExpenses}
-          icon={CreditCardIcon}
-          color="bg-yellow-500"
-          href="/expenses"
-        />
-        <StatCard
-          title="Pending Timesheets"
-          value={stats.pendingTimesheets}
-          icon={ClockIcon}
-          color="bg-blue-500"
-          href="/timesheets"
-        />
-        <StatCard
-          title="Total Expenses"
-          value={`₹${stats.totalAmount.toLocaleString()}`}
-          icon={BarChart3Icon}
-          color="bg-green-500"
-          href="/export"
-        />
-      </div>
+        {/* Tabs Navigation */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
+          <div className="border-b border-slate-200 dark:border-slate-700">
+            <nav className="flex overflow-x-auto scrollbar-hide" aria-label="Tabs">
+              <div className="flex min-w-full sm:min-w-0 px-2">
+                {TABS.map((tab, index) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === index;
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <ActionCard
-          title="Manage Leaves"
-          description="View and approve leave applications"
-          icon={CalendarDaysIcon}
-          href="/approvals?tab=leaves"
-          color="bg-gradient-to-r from-indigo-500 to-purple-600"
-        />
-        <ActionCard
-          title="Review Expenses"
-          description="Approve or reject expense claims"
-          icon={CreditCardIcon}
-          href="/approvals?tab=expenses"
-          color="bg-gradient-to-r from-yellow-500 to-orange-500"
-        />
-        <ActionCard
-          title="Timesheet Approvals"
-          description="Review submitted timesheets"
-          icon={ClockIcon}
-          href="/approvals?tab=timesheets"
-          color="bg-gradient-to-r from-blue-500 to-cyan-500"
-        />
-      </div>
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(index)}
+                      className={`group relative flex items-center gap-3 px-6 py-4 text-sm font-medium transition-all whitespace-nowrap border-b-2 ${
+                        isActive
+                          ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                          : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:border-slate-600'
+                      }`}
+                    >
+                      <Icon
+                        className={`w-5 h-5 transition-transform ${
+                          isActive ? 'scale-110' : 'group-hover:scale-105'
+                        }`}
+                      />
+                      <span>{tab.label}</span>
 
-      {/* Recent Activity */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Recent Activity
-        </h3>
-        <div className="space-y-3">
-          <ActivityItem
-            title="John Doe applied for 3 days sick leave"
-            time="2 hours ago"
-            type="leave"
-            status="pending"
-          />
-          <ActivityItem
-            title="Jane Smith submitted ₹2500 travel expense"
-            time="5 hours ago"
-            type="expense"
-            status="pending"
-          />
-          <ActivityItem
-            title="Mike Johnson submitted weekly timesheet"
-            time="1 day ago"
-            type="timesheet"
-            status="approved"
-          />
+                      {isActive && (
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-600 rounded-full" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+          </div>
+
+          {/* Tab Content */}
+          <div className="p-6">
+            <div className="animate-fadeIn">{renderTabContent()}</div>
+          </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 };
 
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  color: string;
-  href?: string;
-}
-
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color, href }) => (
-  <a href={href} className="group">
-    <div className={`bg-white dark:bg-gray-800 rounded-xl shadow p-6 hover:shadow-xl transition-all group-hover:-translate-y-1 ${href ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700' : ''}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">{title}</p>
-          <p className={`text-2xl font-bold ${color === 'bg-green-500' ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
-            {value}
-          </p>
-        </div>
-        <div className={`${color} rounded-lg p-3`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-      </div>
-    </div>
-  </a>
-);
-
-interface ActionCardProps {
-  title: string;
-  description: string;
-  icon: React.ElementType;
-  href: string;
-  color: string;
-}
-
-const ActionCard: React.FC<ActionCardProps> = ({ title, description, icon: Icon, href, color }) => (
-  <a href={href} className="group">
-    <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-2xl transition-all group-hover:-translate-y-2 cursor-pointer ${color} text-white`}>
-      <div className="flex items-start space-x-4">
-        <div className="p-3 rounded-lg bg-white/20">
-          <Icon className="w-6 h-6" />
-        </div>
-        <div>
-          <h3 className="font-semibold text-lg mb-1">{title}</h3>
-          <p className="text-sm opacity-90">{description}</p>
-        </div>
-      </div>
-    </div>
-  </a>
-);
-
-interface ActivityItemProps {
-  title: string;
-  time: string;
-  type: string;
-  status: string;
-}
-
-const ActivityItem: React.FC<ActivityItemProps> = ({ title, time, type, status }) => (
-  <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-    <div className={`w-2 h-2 rounded-full ${
-      status === 'pending' ? 'bg-yellow-500' :
-      status === 'approved' ? 'bg-green-500' : 'bg-red-500'
-    }`}></div>
-    <div className="flex-1 min-w-0">
-      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{title}</p>
-      <p className="text-xs text-gray-500 dark:text-gray-400">{time}</p>
-    </div>
-    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-      type === 'leave' ? 'bg-orange-100 text-orange-800' :
-      type === 'expense' ? 'bg-yellow-100 text-yellow-800' :
-      'bg-blue-100 text-blue-800'
-    }`}>
-      {type}
-    </span>
-  </div>
-);
-
 export default AdminPanel;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // src/pages/dashboards/AdminPanel.tsx
+// import { useEffect, useState } from 'react';
+// import { useNavigate } from 'react-router-dom';
+// import {
+//   Shield,
+//   Download,
+//   Users,
+//   Tag,
+//   Calendar,
+//   Scale,
+//   FileText,
+//   CheckSquare,
+//   LucideIcon,
+// } from 'lucide-react';
+
+// import UserManagementTable from '../../components/admin/UserManagementTable';
+// // ProjectManagementTable import removed
+// import LeaveTypesManagementTable from '../../components/admin/LeaveTypesManagementTable';
+// import HolidaysManagementTable from '../../components/admin/HolidaysManagementTable';
+// import LeaveBalancesManagementTable from '../../components/admin/LeaveBalancesManagementTable';
+// import LeaveApplicationsOverview from '../../components/admin/LeaveApplicationsOverview';
+// import Approvals from '../../pages/dashboards/Approvals';
+// import ExportPage from '../../components/admin/ExportPage';
+// import toast from 'react-hot-toast';
+// import { useAuth } from '../../context/AuthContext';
+
+// interface Tab {
+//   key: string;
+//   label: string;
+//   icon: LucideIcon;
+//   description: string;
+// }
+
+// const TABS: Tab[] = [
+//   {
+//     key: 'users',
+//     label: 'Users',
+//     icon: Users,
+//     description:
+//       'Add, delete, activate/deactivate, and promote users by changing roles.',
+//   },
+//   // Projects tab removed
+//   {
+//     key: 'leave-types',
+//     label: 'Leave Types',
+//     icon: Tag,
+//     description: 'Configure leave types used across the organization.',
+//   },
+//   {
+//     key: 'holidays',
+//     label: 'Holidays',
+//     icon: Calendar,
+//     description: 'Create and manage company holidays.',
+//   },
+//   {
+//     key: 'leave-balances',
+//     label: 'Leave Balances',
+//     icon: Scale,
+//     description: 'View and adjust employee leave balances.',
+//   },
+//   {
+//     key: 'leave-applications',
+//     label: 'Leave Applications',
+//     icon: FileText,
+//     description: 'Full overview and CRUD on leave applications.',
+//   },
+//   {
+//     key: 'approvals',
+//     label: 'Approvals',
+//     icon: CheckSquare,
+//     description:
+//       'Approve or reject leaves, timesheets, and expenses from one place.',
+//   },
+//   {
+//     key: 'export',
+//     label: 'Export',
+//     icon: Download,
+//     description: 'Export timesheets, leaves, and expenses data.',
+//   },
+// ];
+
+// const AdminPanel: React.FC = () => {
+//   const { user } = useAuth();
+//   const navigate = useNavigate();
+//   const [activeTab, setActiveTab] = useState(0);
+//   const [isLoading, setIsLoading] = useState(true);
+
+//   // Check admin access
+//   useEffect(() => {
+//     const checkAccess = () => {
+//       if (!user) {
+//         setIsLoading(true);
+//         return;
+//       }
+
+//       if (user.role !== 'ADMIN') {
+//         toast.error('Access denied. Admin privileges required.');
+//         navigate('/');
+//         return;
+//       }
+
+//       setIsLoading(false);
+//     };
+
+//     checkAccess();
+//   }, [user, navigate]);
+
+//   const renderTabContent = () => {
+//     switch (activeTab) {
+//       case 0:
+//         // Users
+//         return <UserManagementTable />;
+//       case 1:
+//         // Leave types CRUD
+//         return <LeaveTypesManagementTable />;
+//       case 2:
+//         // Holidays CRUD
+//         return <HolidaysManagementTable />;
+//       case 3:
+//         // Leave balances CRUD
+//         return <LeaveBalancesManagementTable />;
+//       case 4:
+//         // Leave applications overview with admin actions
+//         return <LeaveApplicationsOverview />;
+//       case 5:
+//         // Central approvals for leaves, timesheets, expenses
+//         return <Approvals />;
+//       case 6:
+//         // Data export
+//         return <ExportPage />;
+//       default:
+//         return <UserManagementTable />;
+//     }
+//   };
+
+//   if (isLoading) {
+//     return (
+//       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+//         <div className="text-center">
+//           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4" />
+//           <p className="text-slate-600 dark:text-slate-400 text-lg">
+//             Checking permissions...
+//           </p>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+//       <div className="max-w-[1600px] mx-auto p-4 sm:p-6 space-y-6">
+//         {/* Header */}
+//         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6">
+//           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+//             <div className="flex items-center gap-4">
+//               <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+//                 <Shield className="w-7 h-7 text-white" />
+//               </div>
+//               <div>
+//                 <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+//                   Admin Panel
+//                 </h1>
+//                 <p className="text-slate-600 dark:text-slate-400 mt-1">
+//                   {TABS[activeTab].description}
+//                 </p>
+//               </div>
+//             </div>
+//             <button
+//               onClick={() => setActiveTab(6)}
+//               className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-md hover:shadow-lg"
+//             >
+//               <Download className="w-5 h-5" />
+//               <span className="font-medium">Export</span>
+//             </button>
+//           </div>
+//         </div>
+
+//         {/* Tabs Navigation */}
+//         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
+//           <div className="border-b border-slate-200 dark:border-slate-700">
+//             <nav className="flex overflow-x-auto scrollbar-hide" aria-label="Tabs">
+//               <div className="flex min-w-full sm:min-w-0 px-2">
+//                 {TABS.map((tab, index) => {
+//                   const Icon = tab.icon;
+//                   const isActive = activeTab === index;
+
+//                   return (
+//                     <button
+//                       key={tab.key}
+//                       onClick={() => setActiveTab(index)}
+//                       className={`group relative flex items-center gap-3 px-6 py-4 text-sm font-medium transition-all whitespace-nowrap border-b-2 ${
+//                         isActive
+//                           ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+//                           : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:border-slate-600'
+//                       }`}
+//                     >
+//                       <Icon
+//                         className={`w-5 h-5 transition-transform ${
+//                           isActive ? 'scale-110' : 'group-hover:scale-105'
+//                         }`}
+//                       />
+//                       <span>{tab.label}</span>
+
+//                       {isActive && (
+//                         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-600 rounded-full" />
+//                       )}
+//                     </button>
+//                   );
+//                 })}
+//               </div>
+//             </nav>
+//           </div>
+
+//           {/* Tab Content */}
+//           <div className="p-6">
+//             <div className="animate-fadeIn">{renderTabContent()}</div>
+//           </div>
+//         </div>
+//       </div>
+
+//       <style>{`
+//         @keyframes fadeIn {
+//           from {
+//             opacity: 0;
+//             transform: translateY(10px);
+//           }
+//           to {
+//             opacity: 1;
+//             transform: translateY(0);
+//           }
+//         }
+
+//         .animate-fadeIn {
+//           animation: fadeIn 0.3s ease-out;
+//         }
+
+//         .scrollbar-hide::-webkit-scrollbar {
+//           display: none;
+//         }
+
+//         .scrollbar-hide {
+//           -ms-overflow-style: none;
+//           scrollbar-width: none;
+//         }
+//       `}</style>
+//     </div>
+//   );
+// };
+
+// export default AdminPanel;

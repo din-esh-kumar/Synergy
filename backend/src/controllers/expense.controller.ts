@@ -1,4 +1,4 @@
-// src/controllers/expense.controller.ts - COMPLETE WITH NOTIFICATIONS
+// src/controllers/expense.controller.ts
 import { Request, Response } from 'express';
 import Expense from '../models/Expense.model';
 import User from '../models/User.model';
@@ -11,8 +11,20 @@ import fs from 'fs';
  */
 export const createExpense = async (req: Request, res: Response) => {
   try {
-    const employeeId = (req as any).user.id;
-    const employeeName = (req as any).user.name || (req as any).user.email;
+    // Support both _id and id on req.user
+    const employeeId =
+      (req as any).user?._id || (req as any).user?.id;
+
+    if (!employeeId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: employeeId missing on user',
+      });
+    }
+
+    const employeeName =
+      (req as any).user.name || (req as any).user.email;
+
     const {
       category,
       amount,
@@ -20,24 +32,23 @@ export const createExpense = async (req: Request, res: Response) => {
       date,
       description,
       projectId,
-      merchantName
+      merchantName,
     } = req.body;
 
-    // Validation
     if (!category || !amount || !date || !description) {
       return res.status(400).json({
         success: false,
-        message: 'Category, amount, date, and description are required'
+        message:
+          'Category, amount, date, and description are required',
       });
     }
 
-    // Handle receipt upload
-    let receiptPath = undefined;
+    // Handle receipt upload (disk storage from multerConfig)
+    let receiptUrl: string | undefined;
     if (req.file) {
-      receiptPath = `/uploads/${req.file.filename}`;
+      receiptUrl = `/uploads/${req.file.filename}`;
     }
 
-    // Create expense
     const expense = new Expense({
       employeeId,
       category,
@@ -47,22 +58,22 @@ export const createExpense = async (req: Request, res: Response) => {
       description,
       projectId: projectId || undefined,
       merchantName: merchantName || undefined,
-      receipt: receiptPath,
-      status: 'PENDING'
+      receiptUrl,
+      status: 'submitted', // initial status
+      submittedAt: new Date(),
     });
 
     await expense.save();
 
-    // ✅ FIND MANAGERS TO NOTIFY
+    // Notify admins/managers
     const managers = await User.find({
       role: { $in: ['ADMIN', 'MANAGER'] },
-      status: true
+      status: true,
     }).select('_id name');
 
-    // ✅ NOTIFY MANAGERS ABOUT NEW EXPENSE
     if (managers.length > 0) {
       await createNotification({
-        userIds: managers.map(m => m._id.toString()),
+        userIds: managers.map((m) => m._id.toString()),
         type: 'system',
         action: 'created',
         title: 'New Expense Claim',
@@ -71,19 +82,19 @@ export const createExpense = async (req: Request, res: Response) => {
         entityId: expense._id.toString(),
         icon: 'credit-card',
         color: '#f59e0b',
-        actionUrl: `/approvals?tab=expenses&id=${expense._id}`
+        actionUrl: `/approvals?tab=expenses&id=${expense._id}`,
       });
     }
 
     res.status(201).json({
       success: true,
       message: 'Expense submitted successfully',
-      data: expense
+      data: expense,
     });
   } catch (error: any) {
     res.status(500).json({
       success: false,
-      message: error.message || 'Error creating expense'
+      message: error.message || 'Error creating expense',
     });
   }
 };
@@ -93,17 +104,33 @@ export const createExpense = async (req: Request, res: Response) => {
  */
 export const getMyExpenses = async (req: Request, res: Response) => {
   try {
-    const employeeId = (req as any).user.id;
-    const { status, category, startDate, endDate, page = 1, limit = 10 } = req.query;
+    const employeeId =
+      (req as any).user?._id || (req as any).user?.id;
+
+    if (!employeeId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: employeeId missing on user',
+      });
+    }
+
+    const {
+      status,
+      category,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 10,
+    } = req.query;
 
     const filter: any = { employeeId };
-    
+
     if (status) filter.status = status;
     if (category) filter.category = category;
     if (startDate && endDate) {
       filter.date = {
         $gte: new Date(startDate as string),
-        $lte: new Date(endDate as string)
+        $lte: new Date(endDate as string),
       };
     }
 
@@ -114,7 +141,7 @@ export const getMyExpenses = async (req: Request, res: Response) => {
       .skip(skip)
       .limit(Number(limit))
       .populate('employeeId', 'name email designation')
-      .populate('approverId', 'name email')
+      .populate('approvedBy', 'name email')
       .populate('projectId', 'name');
 
     const total = await Expense.countDocuments(filter);
@@ -125,13 +152,13 @@ export const getMyExpenses = async (req: Request, res: Response) => {
       pagination: {
         total,
         page: Number(page),
-        pages: Math.ceil(total / Number(limit))
-      }
+        pages: Math.ceil(total / Number(limit)),
+      },
     });
   } catch (error: any) {
     res.status(500).json({
       success: false,
-      message: error.message || 'Error fetching expenses'
+      message: error.message || 'Error fetching expenses',
     });
   }
 };
@@ -142,41 +169,41 @@ export const getMyExpenses = async (req: Request, res: Response) => {
 export const getExpenseById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user.id;
+    const userId =
+      (req as any).user?._id || (req as any).user?.id;
     const userRole = (req as any).user.role;
 
     const expense = await Expense.findById(id)
       .populate('employeeId', 'name email designation')
-      .populate('approverId', 'name email')
+      .populate('approvedBy', 'name email')
       .populate('projectId', 'name');
 
     if (!expense) {
       return res.status(404).json({
         success: false,
-        message: 'Expense not found'
+        message: 'Expense not found',
       });
     }
 
-    // Authorization check
     if (
       userRole !== 'ADMIN' &&
       userRole !== 'MANAGER' &&
-      expense.employeeId._id.toString() !== userId
+      expense.employeeId.toString() !== String(userId)
     ) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to view this expense'
+        message: 'Not authorized to view this expense',
       });
     }
 
     res.status(200).json({
       success: true,
-      data: expense
+      data: expense,
     });
   } catch (error: any) {
     res.status(500).json({
       success: false,
-      message: error.message || 'Error fetching expense'
+      message: error.message || 'Error fetching expense',
     });
   }
 };
@@ -187,7 +214,16 @@ export const getExpenseById = async (req: Request, res: Response) => {
 export const updateExpense = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const employeeId = (req as any).user.id;
+    const employeeId =
+      (req as any).user?._id || (req as any).user?.id;
+
+    if (!employeeId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: employeeId missing on user',
+      });
+    }
+
     const {
       category,
       amount,
@@ -195,7 +231,7 @@ export const updateExpense = async (req: Request, res: Response) => {
       date,
       description,
       projectId,
-      merchantName
+      merchantName,
     } = req.body;
 
     const expense = await Expense.findById(id);
@@ -203,27 +239,25 @@ export const updateExpense = async (req: Request, res: Response) => {
     if (!expense) {
       return res.status(404).json({
         success: false,
-        message: 'Expense not found'
+        message: 'Expense not found',
       });
     }
 
-    // Check ownership
-    if (expense.employeeId.toString() !== employeeId) {
+    if (expense.employeeId.toString() !== String(employeeId)) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to update this expense'
+        message: 'Not authorized to update this expense',
       });
     }
 
-    // Can only update pending expenses
-    if (expense.status !== 'PENDING') {
+    // Only editable while submitted/draft
+    if (expense.status !== 'submitted' && expense.status !== 'draft') {
       return res.status(400).json({
         success: false,
-        message: 'Cannot update non-pending expense'
+        message: 'Cannot update processed expense',
       });
     }
 
-    // Update fields
     if (category) expense.category = category;
     if (amount) expense.amount = Number(amount);
     if (currency) expense.currency = currency;
@@ -232,16 +266,16 @@ export const updateExpense = async (req: Request, res: Response) => {
     if (projectId !== undefined) expense.projectId = projectId;
     if (merchantName !== undefined) expense.merchantName = merchantName;
 
-    // Handle new receipt upload
     if (req.file) {
-      // Delete old receipt if exists
-      if (expense.receipt) {
-        const oldPath = path.join(__dirname, '../../', expense.receipt);
+      // delete old receipt if exists (defensive join on relative path)
+      if (expense.receiptUrl) {
+        const safePath = expense.receiptUrl.replace(/^\/+/, '');
+        const oldPath = path.join(process.cwd(), safePath);
         if (fs.existsSync(oldPath)) {
           fs.unlinkSync(oldPath);
         }
       }
-      expense.receipt = `/uploads/${req.file.filename}`;
+      expense.receiptUrl = `/uploads/${req.file.filename}`;
     }
 
     await expense.save();
@@ -249,12 +283,12 @@ export const updateExpense = async (req: Request, res: Response) => {
     res.status(200).json({
       success: true,
       message: 'Expense updated successfully',
-      data: expense
+      data: expense,
     });
   } catch (error: any) {
     res.status(500).json({
       success: false,
-      message: error.message || 'Error updating expense'
+      message: error.message || 'Error updating expense',
     });
   }
 };
@@ -265,36 +299,42 @@ export const updateExpense = async (req: Request, res: Response) => {
 export const deleteExpense = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const employeeId = (req as any).user.id;
+    const employeeId =
+      (req as any).user?._id || (req as any).user?.id;
+
+    if (!employeeId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: employeeId missing on user',
+      });
+    }
 
     const expense = await Expense.findById(id);
 
     if (!expense) {
       return res.status(404).json({
         success: false,
-        message: 'Expense not found'
+        message: 'Expense not found',
       });
     }
 
-    // Check ownership
-    if (expense.employeeId.toString() !== employeeId) {
+    if (expense.employeeId.toString() !== String(employeeId)) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to delete this expense'
+        message: 'Not authorized to delete this expense',
       });
     }
 
-    // Can only delete pending expenses
-    if (expense.status !== 'PENDING') {
+    if (expense.status !== 'submitted' && expense.status !== 'draft') {
       return res.status(400).json({
         success: false,
-        message: 'Cannot delete non-pending expense'
+        message: 'Cannot delete processed expense',
       });
     }
 
-    // Delete receipt file if exists
-    if (expense.receipt) {
-      const receiptPath = path.join(__dirname, '../../', expense.receipt);
+    if (expense.receiptUrl) {
+      const safePath = expense.receiptUrl.replace(/^\/+/, '');
+      const receiptPath = path.join(process.cwd(), safePath);
       if (fs.existsSync(receiptPath)) {
         fs.unlinkSync(receiptPath);
       }
@@ -304,12 +344,12 @@ export const deleteExpense = async (req: Request, res: Response) => {
 
     res.status(200).json({
       success: true,
-      message: 'Expense deleted successfully'
+      message: 'Expense deleted successfully',
     });
   } catch (error: any) {
     res.status(500).json({
       success: false,
-      message: error.message || 'Error deleting expense'
+      message: error.message || 'Error deleting expense',
     });
   }
 };
@@ -320,33 +360,38 @@ export const deleteExpense = async (req: Request, res: Response) => {
 export const approveExpense = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const approverId = (req as any).user.id;
-    const approverName = (req as any).user.name || (req as any).user.email;
+    const approverId =
+      (req as any).user?._id || (req as any).user?.id;
+    const approverName =
+      (req as any).user.name || (req as any).user.email;
 
-    const expense = await Expense.findById(id).populate('employeeId', 'name email');
+    const expense = await Expense.findById(id).populate(
+      'employeeId',
+      'name email'
+    );
 
     if (!expense) {
       return res.status(404).json({
         success: false,
-        message: 'Expense not found'
+        message: 'Expense not found',
       });
     }
 
-    if (expense.status !== 'PENDING') {
+    if (expense.status !== 'submitted') {
       return res.status(400).json({
         success: false,
-        message: 'Expense already processed'
+        message: 'Expense already processed',
       });
     }
 
-    expense.status = 'APPROVED';
-    expense.approverId = approverId;
+    expense.status = 'approved';
+    expense.approvedBy = approverId;
+    expense.approvedAt = new Date();
     expense.processedAt = new Date();
     await expense.save();
 
-    // ✅ NOTIFY EMPLOYEE ABOUT APPROVAL
     await createNotification({
-      userId: expense.employeeId._id.toString(),
+      userId: expense.employeeId.toString(),
       type: 'system',
       action: 'completed',
       title: 'Expense Approved',
@@ -355,18 +400,18 @@ export const approveExpense = async (req: Request, res: Response) => {
       entityId: expense._id.toString(),
       icon: 'check-circle',
       color: '#10b981',
-      actionUrl: `/expenses/${expense._id}`
+      actionUrl: `/expenses/${expense._id}`,
     });
 
     res.status(200).json({
       success: true,
       message: 'Expense approved successfully',
-      data: expense
+      data: expense,
     });
   } catch (error: any) {
     res.status(500).json({
       success: false,
-      message: error.message || 'Error approving expense'
+      message: error.message || 'Error approving expense',
     });
   }
 };
@@ -377,42 +422,46 @@ export const approveExpense = async (req: Request, res: Response) => {
 export const rejectExpense = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const approverId = (req as any).user.id;
-    const approverName = (req as any).user.name || (req as any).user.email;
+    const approverId =
+      (req as any).user?._id || (req as any).user?.id;
+    const approverName =
+      (req as any).user.name || (req as any).user.email;
     const { rejectionReason } = req.body;
 
     if (!rejectionReason) {
       return res.status(400).json({
         success: false,
-        message: 'Rejection reason is required'
+        message: 'Rejection reason is required',
       });
     }
 
-    const expense = await Expense.findById(id).populate('employeeId', 'name email');
+    const expense = await Expense.findById(id).populate(
+      'employeeId',
+      'name email'
+    );
 
     if (!expense) {
       return res.status(404).json({
         success: false,
-        message: 'Expense not found'
+        message: 'Expense not found',
       });
     }
 
-    if (expense.status !== 'PENDING') {
+    if (expense.status !== 'submitted') {
       return res.status(400).json({
         success: false,
-        message: 'Expense already processed'
+        message: 'Expense already processed',
       });
     }
 
-    expense.status = 'REJECTED';
-    expense.approverId = approverId;
+    expense.status = 'rejected';
+    expense.approvedBy = approverId;
     expense.rejectionReason = rejectionReason;
     expense.processedAt = new Date();
     await expense.save();
 
-    // ✅ NOTIFY EMPLOYEE ABOUT REJECTION
     await createNotification({
-      userId: expense.employeeId._id.toString(),
+      userId: expense.employeeId.toString(),
       type: 'system',
       action: 'deleted',
       title: 'Expense Rejected',
@@ -421,18 +470,18 @@ export const rejectExpense = async (req: Request, res: Response) => {
       entityId: expense._id.toString(),
       icon: 'x-circle',
       color: '#ef4444',
-      actionUrl: `/expenses/${expense._id}`
+      actionUrl: `/expenses/${expense._id}`,
     });
 
     res.status(200).json({
       success: true,
       message: 'Expense rejected successfully',
-      data: expense
+      data: expense,
     });
   } catch (error: any) {
     res.status(500).json({
       success: false,
-      message: error.message || 'Error rejecting expense'
+      message: error.message || 'Error rejecting expense',
     });
   }
 };
@@ -442,17 +491,25 @@ export const rejectExpense = async (req: Request, res: Response) => {
  */
 export const getAllExpenses = async (req: Request, res: Response) => {
   try {
-    const { status, category, employeeId, startDate, endDate, page = 1, limit = 10 } = req.query;
+    const {
+      status,
+      category,
+      employeeId,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 10,
+    } = req.query;
 
     const filter: any = {};
-    
+
     if (status) filter.status = status;
     if (category) filter.category = category;
     if (employeeId) filter.employeeId = employeeId;
     if (startDate && endDate) {
       filter.date = {
         $gte: new Date(startDate as string),
-        $lte: new Date(endDate as string)
+        $lte: new Date(endDate as string),
       };
     }
 
@@ -463,7 +520,7 @@ export const getAllExpenses = async (req: Request, res: Response) => {
       .skip(skip)
       .limit(Number(limit))
       .populate('employeeId', 'name email designation')
-      .populate('approverId', 'name email')
+      .populate('approvedBy', 'name email')
       .populate('projectId', 'name');
 
     const total = await Expense.countDocuments(filter);
@@ -474,13 +531,13 @@ export const getAllExpenses = async (req: Request, res: Response) => {
       pagination: {
         total,
         page: Number(page),
-        pages: Math.ceil(total / Number(limit))
-      }
+        pages: Math.ceil(total / Number(limit)),
+      },
     });
   } catch (error: any) {
     res.status(500).json({
       success: false,
-      message: error.message || 'Error fetching expenses'
+      message: error.message || 'Error fetching expenses',
     });
   }
 };
@@ -496,7 +553,7 @@ export const getExpenseStats = async (req: Request, res: Response) => {
     if (startDate && endDate) {
       matchFilter.date = {
         $gte: new Date(startDate as string),
-        $lte: new Date(endDate as string)
+        $lte: new Date(endDate as string),
       };
     }
 
@@ -506,33 +563,33 @@ export const getExpenseStats = async (req: Request, res: Response) => {
         $group: {
           _id: '$status',
           count: { $sum: 1 },
-          totalAmount: { $sum: '$amount' }
-        }
-      }
+          totalAmount: { $sum: '$amount' },
+        },
+      },
     ]);
 
     const byCategory = await Expense.aggregate([
-      { $match: { ...matchFilter, status: 'APPROVED' } },
+      { $match: { ...matchFilter, status: 'approved' } },
       {
         $group: {
           _id: '$category',
           count: { $sum: 1 },
-          totalAmount: { $sum: '$amount' }
-        }
-      }
+          totalAmount: { $sum: '$amount' },
+        },
+      },
     ]);
 
     res.status(200).json({
       success: true,
       data: {
         byStatus: stats,
-        byCategory
-      }
+        byCategory,
+      },
     });
   } catch (error: any) {
     res.status(500).json({
       success: false,
-      message: error.message || 'Error fetching statistics'
+      message: error.message || 'Error fetching statistics',
     });
   }
 };

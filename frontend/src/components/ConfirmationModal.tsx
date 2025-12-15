@@ -1,6 +1,6 @@
 // src/components/EMS/ConfirmationModal.tsx - REUSABLE MODAL
 import React from 'react';
-import { CheckCircleIcon, XCircleIcon, XMarkIcon } from 'lucide-react';
+import { CheckCircle, XCircle, X } from 'lucide-react';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -17,7 +17,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   onConfirm,
   title,
   message,
-  actionType
+  actionType,
 }) => {
   if (!isOpen) return null;
 
@@ -27,23 +27,27 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {actionType === 'approve' ? (
-              <CheckCircleIcon className="w-6 h-6 text-green-500" />
+              <CheckCircle className="w-6 h-6 text-green-500" />
             ) : (
-              <XCircleIcon className="w-6 h-6 text-red-500" />
+              <XCircle className="w-6 h-6 text-red-500" />
             )}
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              {title}
+            </h2>
           </div>
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
-            <XMarkIcon className="w-6 h-6 text-gray-500" />
+            <X className="w-6 h-6 text-gray-500" />
           </button>
         </div>
 
         <div className="p-6">
-          <p className="text-gray-700 dark:text-gray-300 mb-6">{message}</p>
-          
+          <p className="text-gray-700 dark:text-gray-300 mb-6">
+            {message}
+          </p>
+
           <div className="flex gap-3 pt-4">
             <button
               onClick={onConfirm}

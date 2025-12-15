@@ -1,11 +1,16 @@
+// src/types/dashboard.types.ts
+
 import { Meeting } from './meetings.types';
+
+export type TaskStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED';
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export interface Task {
   _id: string;
   title: string;
   description?: string;
-  status: string;
-  priority: string;
+  status: TaskStatus | string;
+  priority: TaskPriority | string;
   project: {
     _id: string;
     name: string;
@@ -29,10 +34,18 @@ export interface DashboardStats {
   completedTasksThisWeek: number;
   tasksByStatus: Array<{ _id: string; count: number }>;
   projectsByStatus: Array<{ _id: string; count: number }>;
+
   // Optional extras used in UI widgets
   totalTeamMembers?: number;
   completedTasks?: number;
   ongoingProjects?: number;
+
+  // Extra fields used in Dashboard.tsx
+  myTasksCount?: number;
+  openIssuesCount?: number;
+  upcomingMeetingsCount?: number;
+  activeProjectsCount?: number;
+  pendingApprovals?: number;
 }
 
 export interface DashboardWidget {
@@ -43,8 +56,10 @@ export interface DashboardWidget {
   trend?: number;
 }
 
+export type UserRole = 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+
 export interface RoleFeature {
-  role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+  role: UserRole;
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
@@ -56,6 +71,13 @@ export interface DashboardData {
   stats: DashboardStats;
   upcomingMeetings: Meeting[];
   recentTasks: Task[];
+}
+
+// Shape returned by backend when you use /dashboard (not /dashboard/stats)
+export interface DashboardApiResponse {
+  success: boolean;
+  message?: string;
+  data: DashboardData;
 }
 
 export interface Activity {

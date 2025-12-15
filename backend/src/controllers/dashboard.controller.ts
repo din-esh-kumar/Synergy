@@ -2,14 +2,22 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import User from '../models/User.model';
-import ProjectModel, { IProject } from '../models/Project.model';
-import TaskModel, { ITask } from '../models/Task.model';
+import ProjectModel from '../models/Project.model';
+import TaskModel from '../models/Task.model';
 import Meeting from '../models/Meeting.model';
 import IssueModel from '../models/Issue.model';
 
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
-    const userId = new mongoose.Types.ObjectId((req as any).user?.id);
+    const rawUserId = (req as any).user?.id || (req as any).user?._id;
+    if (!rawUserId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: user id missing',
+      });
+    }
+
+    const userId = new mongoose.Types.ObjectId(rawUserId);
 
     const [
       totalProjects,
@@ -18,37 +26,46 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       totalIssues,
       upcomingMeetings,
       recentTasks,
-      tasksByStatus,
-      projectsByStatus,
+      rawTasksByStatus,
+      rawProjectsByStatus,
     ] = await Promise.all([
+      // Projects where user is owner or member of team
       ProjectModel.countDocuments({
         $or: [{ owner: userId }, { team: userId }],
       }),
 
+      // Tasks assigned to user
       TaskModel.countDocuments({ assignedTo: userId }),
 
+      // Meetings where user is organizer or attendee
       Meeting.countDocuments({
         $or: [{ organizer: userId }, { attendees: userId }],
       }),
 
+      // Issues reported by this user
       IssueModel.countDocuments({ reportedBy: userId }),
 
+      // Upcoming meetings (next 5)
       Meeting.find({
         $or: [{ organizer: userId }, { attendees: userId }],
         startTime: { $gte: new Date() },
-        status: 'scheduled',
+        status: 'SCHEDULED', // ensure matches Meeting.model values
       })
         .populate('organizer', 'name email')
         .populate('attendees', 'name email')
         .sort({ startTime: 1 })
-        .limit(5),
+        .limit(5)
+        .lean(),
 
+      // Recent tasks (last 5)
       TaskModel.find({ assignedTo: userId })
         .populate('projectId', 'name')
         .populate('assignedTo', 'name email')
         .sort({ updatedAt: -1 })
-        .limit(5),
+        .limit(5)
+        .lean(),
 
+      // Task counts by status
       TaskModel.aggregate([
         { $match: { assignedTo: userId } },
         {
@@ -59,6 +76,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         },
       ]),
 
+      // Project counts by status
       ProjectModel.aggregate([
         {
           $match: {
@@ -74,6 +92,18 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       ]),
     ]);
 
+    // Map aggregates to cleaner objects
+    const tasksByStatus = rawTasksByStatus.map((row: any) => ({
+      status: row._id,
+      count: row.count,
+    }));
+
+    const projectsByStatus = rawProjectsByStatus.map((row: any) => ({
+      status: row._id,
+      count: row.count,
+    }));
+
+    // Today window
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
@@ -82,20 +112,21 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     const todaysMeetings = await Meeting.countDocuments({
       $or: [{ organizer: userId }, { attendees: userId }],
       startTime: { $gte: startOfDay, $lte: endOfDay },
-      status: 'scheduled',
+      status: 'SCHEDULED',
     });
 
+    // Start of current week (Sunday)
     const startOfWeek = new Date();
     startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
 
     const completedTasksThisWeek = await TaskModel.countDocuments({
       assignedTo: userId,
-      status: 'COMPLETED',
+      status: 'COMPLETED', // ensure matches Task.model values
       updatedAt: { $gte: startOfWeek },
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       stats: {
         totalProjects,
@@ -112,7 +143,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Get dashboard stats error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Error fetching dashboard data',
       error: error.message,
@@ -122,13 +153,22 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
 export const getActivityFeed = async (req: Request, res: Response) => {
   try {
-    const userId = new mongoose.Types.ObjectId((req as any).user?.id);
+    const rawUserId = (req as any).user?.id || (req as any).user?._id;
+    if (!rawUserId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: user id missing',
+      });
+    }
+
+    const userId = new mongoose.Types.ObjectId(rawUserId);
     const limit = parseInt(req.query.limit as string, 10) || 20;
+    const perTypeLimit = Math.max(1, Math.ceil(limit / 3));
 
     const [recentTasks, recentMeetings, recentIssues] = await Promise.all([
       TaskModel.find({ assignedTo: userId })
         .sort({ updatedAt: -1 })
-        .limit(Math.ceil(limit / 3))
+        .limit(perTypeLimit)
         .populate('projectId', 'name')
         .populate('assignedTo', 'name')
         .lean(),
@@ -137,13 +177,13 @@ export const getActivityFeed = async (req: Request, res: Response) => {
         $or: [{ organizer: userId }, { attendees: userId }],
       })
         .sort({ updatedAt: -1 })
-        .limit(Math.ceil(limit / 3))
+        .limit(perTypeLimit)
         .populate('organizer', 'name')
         .lean(),
 
       IssueModel.find({ reportedBy: userId })
         .sort({ updatedAt: -1 })
-        .limit(Math.ceil(limit / 3))
+        .limit(perTypeLimit)
         .populate('projectId', 'name')
         .populate('reportedBy', 'name')
         .lean(),
@@ -170,18 +210,20 @@ export const getActivityFeed = async (req: Request, res: Response) => {
       ...issueActivities,
     ].sort(
       (a, b) =>
-        new Date(b.updatedAt ?? 0).getTime() -
-        new Date(a.updatedAt ?? 0).getTime()
+        new Date(b.updatedAt ?? b.createdAt ?? 0).getTime() -
+        new Date(a.updatedAt ?? a.createdAt ?? 0).getTime(),
     );
 
-    res.status(200).json({
+    const sliced = activities.slice(0, limit);
+
+    return res.status(200).json({
       success: true,
-      count: activities.slice(0, limit).length,
-      activities: activities.slice(0, limit),
+      count: sliced.length,
+      activities: sliced,
     });
   } catch (error: any) {
     console.error('Get activity feed error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Error fetching activity feed',
       error: error.message,

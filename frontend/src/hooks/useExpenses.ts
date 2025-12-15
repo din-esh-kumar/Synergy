@@ -1,7 +1,15 @@
 // src/hooks/useExpenses.ts - EXPENSE MANAGEMENT HOOK
 import { useState } from 'react';
 import * as expenseService from '../services/expense.service';
-import { Expense, ExpenseFormData, ExpenseFilters } from '../types/expense.types';
+import {
+  Expense,
+  ExpenseFormData,
+  ExpenseFilters,
+} from '../types/expense.types';
+import {
+  approveItem as approveApprovalItem,
+  rejectItem as rejectApprovalItem,
+} from '../services/approval.service';
 
 export const useExpenses = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -37,6 +45,7 @@ export const useExpenses = () => {
     setError(null);
     try {
       const response = await expenseService.getMyExpenses(filters);
+      // getMyExpenses already returns { success, data, ... }
       setExpenses(response.data);
       return response;
     } catch (err: any) {
@@ -101,11 +110,12 @@ export const useExpenses = () => {
     }
   };
 
+  // Use unified approvals API for admin actions
   const approveExpense = async (id: string) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await expenseService.approveExpense(id);
+      const response = await approveApprovalItem('expense', id);
       return response;
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to approve expense');
@@ -119,7 +129,7 @@ export const useExpenses = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await expenseService.rejectExpense(id, reason);
+      const response = await rejectApprovalItem('expense', id, reason);
       return response;
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to reject expense');
@@ -139,6 +149,6 @@ export const useExpenses = () => {
     deleteExpense,
     fetchAllExpenses,
     approveExpense,
-    rejectExpense
+    rejectExpense,
   };
 };

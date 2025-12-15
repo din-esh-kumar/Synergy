@@ -4,14 +4,14 @@ export interface ILeaveType extends Document {
   name: string;
   code: string;
   description?: string;
-  maxDays: number;
+  maxDays: number;          // used as "Default Days" in UI
   isActive: boolean;
   hasDefaultBalance: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const leaveTypeSchema = new Schema(
+const leaveTypeSchema = new Schema<ILeaveType>(
   {
     name: {
       type: String,
@@ -23,14 +23,17 @@ const leaveTypeSchema = new Schema(
       required: true,
       unique: true,
       uppercase: true,
+      trim: true,
     },
     description: {
       type: String,
       default: '',
+      trim: true,
     },
     maxDays: {
       type: Number,
-      default: 0, // 0 = unlimited
+      default: 0,
+      min: 0,
     },
     isActive: {
       type: Boolean,
@@ -41,7 +44,7 @@ const leaveTypeSchema = new Schema(
       default: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.model<ILeaveType>('LeaveType', leaveTypeSchema);

@@ -1,7 +1,18 @@
-// src/hooks/useLeaves.ts - LEAVE MANAGEMENT HOOK
+// src/hooks/useLeaves.ts
 import { useState } from 'react';
 import * as leaveService from '../services/leave.service';
-import { Leave, LeaveFormData, LeaveBalance, LeaveFilters } from '../types/leave.types';
+import {
+  Leave,
+  LeaveFormData,
+  LeaveBalance,
+  LeaveFilters,
+} from '../types/leave.types';
+
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
 
 export const useLeaves = () => {
   const [leaves, setLeaves] = useState<Leave[]>([]);
@@ -13,7 +24,7 @@ export const useLeaves = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await leaveService.applyLeave(data);
+      const response: ApiResponse<Leave> = await leaveService.applyLeave(data);
       return response;
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to apply for leave');
@@ -27,8 +38,9 @@ export const useLeaves = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await leaveService.getMyLeaves(filters);
-      setLeaves(response.data);
+      const response: ApiResponse<Leave[]> =
+        await leaveService.getMyLeaves(filters);
+      setLeaves(response.data || []);
       return response;
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch leaves');
@@ -42,8 +54,9 @@ export const useLeaves = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await leaveService.getLeaveBalance(year);
-      setBalances(response.data);
+      const response: ApiResponse<LeaveBalance[]> =
+        await leaveService.getLeaveBalance(year);
+      setBalances(response.data || []);
       return response;
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch balance');
@@ -57,7 +70,8 @@ export const useLeaves = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await leaveService.updateLeave(id, data);
+      const response: ApiResponse<Leave> =
+        await leaveService.updateLeave(id, data);
       return response;
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to update leave');
@@ -71,7 +85,8 @@ export const useLeaves = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await leaveService.cancelLeave(id);
+      const response: ApiResponse<Leave> =
+        await leaveService.cancelLeave(id);
       return response;
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to cancel leave');
@@ -86,8 +101,9 @@ export const useLeaves = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await leaveService.getAllLeaves(filters);
-      setLeaves(response.data);
+      const response: ApiResponse<Leave[]> =
+        await leaveService.getAllLeaves(filters);
+      setLeaves(response.data || []);
       return response;
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch leaves');
@@ -101,7 +117,8 @@ export const useLeaves = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await leaveService.updateLeaveStatus(id, 'APPROVED');
+      const response: ApiResponse<Leave> =
+        await leaveService.updateLeaveStatus(id, 'APPROVED');
       return response;
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to approve leave');
@@ -115,7 +132,8 @@ export const useLeaves = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await leaveService.updateLeaveStatus(id, 'REJECTED', reason);
+      const response: ApiResponse<Leave> =
+        await leaveService.updateLeaveStatus(id, 'REJECTED', reason);
       return response;
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to reject leave');
@@ -137,6 +155,6 @@ export const useLeaves = () => {
     cancelLeave,
     fetchAllLeaves,
     approveLeave,
-    rejectLeave
+    rejectLeave,
   };
 };

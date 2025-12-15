@@ -1,21 +1,52 @@
-// src/services/approval.service.ts - UNIFIED APPROVALS
-import axios from 'axios';
+// src/services/approval.service.ts
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import api from './api';
 
-export const getPendingApprovals = async (type?: string) => {
-  const response = await axios.get(`${API_URL}/approvals/pending`, { params: { type } });
+// These map directly to the :type param in /approvals/:type/:id/...
+export type ApprovalEntityType = 'leave' | 'expense' | 'timesheet';
+
+// For /approvals/pending
+// Backend supports type: 'leaves' | 'expenses' | 'timesheets' | 'all'
+export type PendingTypeFilter = 'leaves' | 'expenses' | 'timesheets' | 'all';
+
+export interface PendingApprovalsFilters {
+  type?: PendingTypeFilter;
+}
+
+/**
+ * Fetch pending approvals for admin/manager dashboard.
+ * GET /approvals/pending?type=leaves|expenses|timesheets|all
+ */
+export const getPendingApprovals = async (
+  filters?: PendingApprovalsFilters,
+) => {
+  const response = await api.get('/approvals/pending', {
+    params: filters,
+  });
   return response.data;
 };
 
-export const approveRequest = async (type: string, id: string) => {
-  const response = await axios.put(`${API_URL}/approvals/${type}/${id}/approve`);
+/**
+ * Approve a specific item.
+ * PUT /approvals/:type/:id/approve
+ * type = 'leave' | 'expense' | 'timesheet'
+ */
+export const approveItem = async (type: ApprovalEntityType, id: string) => {
+  const response = await api.put(`/approvals/${type}/${id}/approve`);
   return response.data;
 };
 
-export const rejectRequest = async (type: string, id: string, rejectionReason: string) => {
-  const response = await axios.put(`${API_URL}/approvals/${type}/${id}/reject`, {
-    rejectionReason
+/**
+ * Reject a specific item with reason.
+ * PUT /approvals/:type/:id/reject
+ */
+export const rejectItem = async (
+  type: ApprovalEntityType,
+  id: string,
+  rejectionReason: string,
+) => {
+  const response = await api.put(`/approvals/${type}/${id}/reject`, {
+    rejectionReason,
   });
   return response.data;
 };

@@ -9,7 +9,7 @@ export interface ILeaveBalance extends Document {
   updatedAt: Date;
 }
 
-const leaveBalanceSchema = new Schema(
+const leaveBalanceSchema = new Schema<ILeaveBalance>(
   {
     userId: {
       type: Schema.Types.ObjectId,
@@ -25,16 +25,28 @@ const leaveBalanceSchema = new Schema(
       type: Number,
       required: true,
       default: 0,
+      min: 0,
     },
     year: {
       type: Number,
       required: true,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    collection: 'leavebalances', // ensures predictable collection name
+  },
 );
 
 // Compound index for unique user-leaveType-year combination
-leaveBalanceSchema.index({ userId: 1, leaveTypeId: 1, year: 1 }, { unique: true });
+leaveBalanceSchema.index(
+  { userId: 1, leaveTypeId: 1, year: 1 },
+  { unique: true },
+);
 
-export default mongoose.model<ILeaveBalance>('LeaveBalance', leaveBalanceSchema);
+const LeaveBalance = mongoose.model<ILeaveBalance>(
+  'LeaveBalance',
+  leaveBalanceSchema,
+);
+
+export default LeaveBalance;

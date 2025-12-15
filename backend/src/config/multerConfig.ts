@@ -1,3 +1,4 @@
+// src/config/multerConfig.ts
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -14,7 +15,8 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const uniqueSuffix =
+      Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname);
     cb(null, file.fieldname + '-' + uniqueSuffix + ext);
   },
@@ -40,8 +42,11 @@ const fileFilter = (req: any, file: any, cb: any) => {
   }
 };
 
-export const uploadMiddleware = multer({
+export const upload = multer({
   storage,
   fileFilter,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
+
+// Backward‑compatible alias so old imports keep working
+export const uploadMiddleware = upload;

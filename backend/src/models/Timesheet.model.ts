@@ -1,23 +1,26 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
+export type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected';
+
 export interface ITimesheet extends Document {
-  userId: Types.ObjectId;
+  employeeId: Types.ObjectId;
   projectId: Types.ObjectId;
-  date: string;
-  hours: number;
+  date: Date;
+  hoursWorked: number;
   description?: string;
-  status: 'draft' | 'submitted' | 'approved' | 'rejected';
-  submittedAt?: Date;
-  approvedBy?: Types.ObjectId;
-  approvedAt?: Date;
+  status: TimesheetStatus;
+  submittedAt?: Date | null;
+  approvedBy?: Types.ObjectId | null;
+  approvedAt?: Date | null;
+  processedAt?: Date | null;
   rejectionReason?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const timesheetSchema = new Schema(
+const timesheetSchema = new Schema<ITimesheet>(
   {
-    userId: {
+    employeeId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
@@ -28,10 +31,10 @@ const timesheetSchema = new Schema(
       required: true,
     },
     date: {
-      type: String,
+      type: Date,
       required: true,
     },
-    hours: {
+    hoursWorked: {
       type: Number,
       required: true,
     },
@@ -46,16 +49,24 @@ const timesheetSchema = new Schema(
     },
     submittedAt: {
       type: Date,
+      default: null,
     },
     approvedBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
+      default: null,
     },
     approvedAt: {
       type: Date,
+      default: null,
+    },
+    processedAt: {
+      type: Date,
+      default: null,
     },
     rejectionReason: {
       type: String,
+      default: '',
     },
   },
   { timestamps: true }

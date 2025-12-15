@@ -1,5 +1,7 @@
 // src/types/timesheet.types.ts - TIMESHEET TYPES
-export type TimesheetStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+
+// Match backend: 'draft' | 'submitted' | 'approved' | 'rejected'
+export type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected';
 
 export interface Timesheet {
   _id: string;
@@ -13,27 +15,29 @@ export interface Timesheet {
     _id: string;
     name: string;
   };
-  date: Date;
+  date: string; // comes as ISO string from API
   hoursWorked: number;
-  taskDescription: string;
+  // Backend field is "description", frontend form uses "taskDescription"
+  description: string;
   status: TimesheetStatus;
-  approverId?: {
+  approvedBy?: {
     _id: string;
     name: string;
     email: string;
-  };
+  } | null;
   rejectionReason?: string;
-  submittedAt?: Date;
-  processedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  processedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TimesheetFormData {
   projectId: string;
   date: string;
   hoursWorked: number;
-  taskDescription: string;
+  taskDescription: string; // sent as taskDescription, mapped to description in controller
 }
 
 export interface TimesheetFilters {

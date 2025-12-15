@@ -1,87 +1,124 @@
+// src/pages/auth/Register.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 
 const Register: React.FC = () => {
   const [form, setForm] = useState({
-  name: '', email: '', password: ''
+    name: '',
+    email: '',
+    password: '',
   });
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
     try {
       await api.post('/auth/register', form);
       navigate('/login');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed');
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Registration failed'
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#181f32]">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-[#222939] p-10 rounded-xl shadow-md w-full max-w-md flex flex-col gap-6"
-      >
-        <div className="flex flex-col items-center">
-          <span className="material-symbols-outlined bg-blue-600 text-white rounded-full p-2 mb-2">groups</span>
-          <span className="font-bold text-lg text-white mb-1">Synergy</span>
-        </div>
-        <h2 className="text-white text-2xl font-black text-center mb-1">Create your account</h2>
-        <p className="text-[#afb8c7] text-sm text-center mb-2">Sign up and start your journey.</p>
-        {error && <div className="text-red-500 text-sm text-center">{error}</div>}
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
+        <h1 className="text-2xl font-semibold text-gray-900 text-center mb-2">
+          Synergy
+        </h1>
+        <p className="text-sm text-gray-500 text-center mb-6">
+          Create your account
+        </p>
 
-        <input
-          className="block w-full bg-[#181f32] text-white rounded-lg border border-[#25304d] focus:ring-blue-500 py-2 px-3 placeholder-[#586279] outline-none"
-          type="text"
-          name="name"
-          placeholder="Full Name"
-          value={form.name}
-          onChange={handleChange}
-          required
-        />
-        <input
-          className="block w-full bg-[#181f32] text-white rounded-lg border border-[#25304d] focus:ring-blue-500 py-2 px-3 placeholder-[#586279] outline-none"
-          type="email"
-          name="email"
-          placeholder="yourname@company.com"
-          value={form.email}
-          onChange={handleChange}
-          required
-        />
-        <input
-          className="block w-full bg-[#181f32] text-white rounded-lg border border-[#25304d] focus:ring-blue-500 py-2 px-3 placeholder-[#586279] outline-none"
-          type="password"
-          name="password"
-          placeholder="Create a password"
-          value={form.password}
-          onChange={handleChange}
-          required
-        />
-        <button
-          type="submit"
-          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg mt-2 transition"
-          disabled={loading}
-        >
-          {loading ? "Registering..." : "Sign Up"}
-        </button>
-        <div className="text-center text-[#afb8c7] text-xs mt-3">
-          Already have an account?{" "}
-          <span onClick={() => navigate('/login')} className="text-blue-500 hover:underline cursor-pointer">
+        {error && (
+          <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Full name
+            </label>
+            <input
+              type="text"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              placeholder="Karthik Patnaik Kumar"
+              autoComplete="name"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email address
+            </label>
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              placeholder="you@example.com"
+              autoComplete="email"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              placeholder="Create a strong password"
+              autoComplete="new-password"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 transition disabled:opacity-60"
+          >
+            {loading ? 'Registering...' : 'Sign Up'}
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-gray-500">
+          Already have an account?{' '}
+          <span
+            onClick={() => navigate('/login')}
+            className="text-blue-600 hover:underline cursor-pointer font-medium"
+          >
             Log in
           </span>
-        </div>
-      </form>
+        </p>
+      </div>
     </div>
   );
 };

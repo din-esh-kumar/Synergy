@@ -5,20 +5,16 @@
     "moduleResolution": "node",
     "outDir": "./dist",
     "rootDir": "./src",
-
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-
     "baseUrl": "./",
     "paths": {
       "*": ["src/*"]
     },
-
     "typeRoots": ["./src/types", "./node_modules/@types"],
     "types": ["node", "express"]
   },
-
-  "include": ["src/**/*", "src/types/**/*", "../frontend/src/services/timesheet.service.ts", "../frontend/src/services/leave.service.ts", "../frontend/src/services/expense.service.ts", "../frontend/src/services/approval.service.ts"]
+  "include": ["src/**/*", "src/types/**/*"]
 }

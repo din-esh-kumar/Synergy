@@ -1,4 +1,5 @@
 // src/services/api.ts
+
 import axios from 'axios';
 
 const api = axios.create({
@@ -8,15 +9,15 @@ const api = axios.create({
 
 // Attach JWT token from localStorage to every request
 api.interceptors.request.use((config) => {
-  // Use the SAME key you use when saving the token on login
   const token =
-    localStorage.getItem('synergy_token') || // try new key
-    localStorage.getItem('token');           // fallback to old key
+    localStorage.getItem('synergy_token') ||
+    localStorage.getItem('token');
 
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 

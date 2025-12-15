@@ -1,89 +1,145 @@
-// src/components/EMS/Expenses/ExpenseFormModal.tsx - FULL EXPENSE FORM
+// src/pages/Expenses/ExpenseFormModal.tsx
 import React, { useState, useEffect } from 'react';
-import { useExpenses } from '../../../hooks/useExpenses';
-import { useTeams } from '../../../hooks/useTeams';
+import { useExpenses } from '../../hooks/useExpenses';
+import { useTeams } from '../../hooks/useTeams';
 import {
-  XMarkIcon,
-  CheckIcon,
-  CreditCardIcon,
-  UploadIcon
+  X,
+  Check as CheckIcon,
+  CreditCard,
+  Upload,
+  Receipt,
 } from 'lucide-react';
+import {
+  ExpenseFormData,
+  ExpenseCategory,
+  Expense,
+} from '../../types/expense.types';
 
-const ExpenseFormModal: React.FC<{
+interface ExpenseFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-}> = ({ isOpen, onClose, onSuccess }) => {
-  const { createExpense } = useExpenses();
-  const { projects } = useTeams();
+  // NEW: when provided, modal acts as “edit expense”
+  expense?: Expense;
+}
 
-  const [formData, setFormData] = useState({
-    category: '',
-    amount: '',
-    currency: 'INR',
-    date: '',
-    description: '',
-    projectId: '',
-    merchantName: ''
-  });
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [errors, setErrors] = useState({});
+type ExpenseFormErrors = Partial<
+  Record<'category' | 'amount' | 'date' | 'description', string>
+>;
+
+const defaultForm: ExpenseFormData = {
+  category: '' as ExpenseCategory,
+  amount: 0,
+  currency: 'INR',
+  date: new Date().toISOString().split('T')[0],
+  description: '',
+  projectId: '',
+  merchantName: '',
+  receipt: undefined,
+};
+
+const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  expense,
+}) => {
+  const { createExpense, updateExpense } = useExpenses();
+  const { teams } = useTeams();
+
+  const [formData, setFormData] = useState<ExpenseFormData>(defaultForm);
+  const [receiptFile, setReceiptFile] = useState<File | undefined>(undefined);
+  const [errors, setErrors] = useState<ExpenseFormErrors>({});
   const [loading, setLoading] = useState(false);
 
+  // Reset / prefill when modal opens
   useEffect(() => {
-    if (isOpen) {
-      setFormData({
-        category: '',
-        amount: '',
-        currency: 'INR',
-        date: new Date().toISOString().split('T')[0],
-        description: '',
-        projectId: '',
-        merchantName: ''
-      });
-      setReceiptFile(null);
-      setPreviewUrl(null);
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        alert('File size must be less than 5MB');
-        return;
-      }
-      setReceiptFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+    if (expense) {
+      // Editing existing expense
+      setFormData({
+        category: expense.category,
+        amount: expense.amount,
+        currency: expense.currency || 'INR',
+        date: new Date(expense.date).toISOString().split('T')[0],
+        description: expense.description,
+        projectId: expense.projectId?._id || '',
+        merchantName: expense.merchantName || '',
+        receipt: undefined,
+      });
+    } else {
+      // Creating new expense
+      setFormData({
+        ...defaultForm,
+        date: new Date().toISOString().split('T')[0],
+      });
     }
+
+    setReceiptFile(undefined);
+    setErrors({});
+  }, [isOpen, expense]);
+
+  const handleFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    setReceiptFile(file);
   };
 
   const validateForm = () => {
-    const newErrors: any = {};
-    
+    const newErrors: ExpenseFormErrors = {};
+
     if (!formData.category) newErrors.category = 'Category is required';
-    if (!formData.amount || Number(formData.amount) <= 0) newErrors.amount = 'Valid amount required';
+    if (!formData.amount || Number(formData.amount) <= 0) {
+      newErrors.amount = 'Valid amount required';
+    }
     if (!formData.date) newErrors.date = 'Date is required';
     if (!formData.description || formData.description.length < 10) {
-      newErrors.description = 'Description must be at least 10 characters';
+      newErrors.description =
+        'Description must be at least 10 characters';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>,
+  ) => {
     e.preventDefault();
     if (!validateForm()) return;
-    
+
     setLoading(true);
     try {
-      await createExpense({ ...formData, receipt: receiptFile });
+      if (expense) {
+        // Update existing expense
+        await updateExpense(expense._id, {
+          ...formData,
+          amount: Number(formData.amount),
+          // backend treats missing receipt as "keep existing"
+          receipt: receiptFile,
+        } as any);
+      } else {
+        // Create new expense
+        await createExpense({
+          ...formData,
+          amount: Number(formData.amount),
+          receipt: receiptFile,
+        });
+      }
+
       onSuccess();
       onClose();
-    } catch (error: any) {
-      console.error('Error creating expense:', error);
+    } catch (error) {
+      console.error('Error saving expense:', error);
     } finally {
       setLoading(false);
     }
@@ -97,19 +153,24 @@ const ExpenseFormModal: React.FC<{
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-              <CreditCardIcon className="w-7 h-7 text-green-600" />
-              Submit Expense Claim
+              <CreditCard className="w-7 h-7 text-green-600" />
+              {expense ? 'Edit Expense Claim' : 'Submit Expense Claim'}
             </h2>
             <button
               onClick={onClose}
+              type="button"
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
-              <XMarkIcon className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5 text-gray-500" />
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="p-6 space-y-6"
+          noValidate
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -117,7 +178,12 @@ const ExpenseFormModal: React.FC<{
               </label>
               <select
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    category: e.target.value as ExpenseCategory,
+                  })
+                }
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 disabled={loading}
               >
@@ -131,7 +197,9 @@ const ExpenseFormModal: React.FC<{
                 <option value="OTHER">Other</option>
               </select>
               {errors.category && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.category}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {errors.category}
+                </p>
               )}
             </div>
 
@@ -144,13 +212,20 @@ const ExpenseFormModal: React.FC<{
                 step="0.01"
                 min="0"
                 value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    amount: e.target.value as unknown as number,
+                  })
+                }
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 placeholder="1500.00"
                 disabled={loading}
               />
               {errors.amount && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.amount}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {errors.amount}
+                </p>
               )}
             </div>
           </div>
@@ -163,12 +238,19 @@ const ExpenseFormModal: React.FC<{
               <input
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    date: e.target.value,
+                  })
+                }
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 disabled={loading}
               />
               {errors.date && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.date}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {errors.date}
+                </p>
               )}
             </div>
 
@@ -179,7 +261,12 @@ const ExpenseFormModal: React.FC<{
               <input
                 type="text"
                 value={formData.merchantName}
-                onChange={(e) => setFormData({ ...formData, merchantName: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    merchantName: e.target.value,
+                  })
+                }
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 placeholder="Uber, Swiggy, etc."
                 disabled={loading}
@@ -192,13 +279,18 @@ const ExpenseFormModal: React.FC<{
               Project (Optional)
             </label>
             <select
-              value={formData.projectId}
-              onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+              value={formData.projectId || ''}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  projectId: e.target.value,
+                })
+              }
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               disabled={loading}
             >
               <option value="">No project</option>
-              {projects.map((project: any) => (
+              {(teams || []).map((project: any) => (
                 <option key={project._id} value={project._id}>
                   {project.name}
                 </option>
@@ -213,20 +305,27 @@ const ExpenseFormModal: React.FC<{
             <textarea
               rows={3}
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  description: e.target.value,
+                })
+              }
               placeholder="Provide details about this expense..."
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-vertical"
               disabled={loading}
             />
             {errors.description && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.description}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                {errors.description}
+              </p>
             )}
           </div>
 
           {/* Receipt Upload */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-              <ReceiptIcon className="w-4 h-4" />
+              <Receipt className="w-4 h-4" />
               Receipt (Optional)
             </label>
             <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6 hover:border-green-400 transition-colors">
@@ -238,10 +337,17 @@ const ExpenseFormModal: React.FC<{
                 id="receipt"
                 disabled={loading}
               />
-              <label htmlFor="receipt" className="cursor-pointer flex flex-col items-center">
-                <UploadIcon className="w-12 h-12 text-gray-400 mb-2" />
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Click to upload receipt</p>
-                <p className="text-xs text-gray-500 dark:text-gray-500">PNG, JPG, PDF up to 5MB</p>
+              <label
+                htmlFor="receipt"
+                className="cursor-pointer flex flex-col items-center"
+              >
+                <Upload className="w-12 h-12 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  Click to upload receipt
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  PNG, JPG, PDF up to 5MB
+                </p>
               </label>
             </div>
             {receiptFile && (
@@ -253,8 +359,7 @@ const ExpenseFormModal: React.FC<{
                   <button
                     type="button"
                     onClick={() => {
-                      setReceiptFile(null);
-                      setPreviewUrl(null);
+                      setReceiptFile(undefined);
                     }}
                     className="text-green-600 hover:text-green-900 text-sm"
                   >
@@ -273,13 +378,15 @@ const ExpenseFormModal: React.FC<{
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
                   <span>Submitting...</span>
                 </>
               ) : (
                 <>
                   <CheckIcon className="w-5 h-5" />
-                  <span>Submit Expense Claim</span>
+                  <span>
+                    {expense ? 'Update Expense Claim' : 'Submit Expense Claim'}
+                  </span>
                 </>
               )}
             </button>

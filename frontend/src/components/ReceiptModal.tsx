@@ -1,6 +1,6 @@
 // src/components/EMS/ReceiptModal.tsx - RECEIPT VIEWER
 import React from 'react';
-import { XMarkIcon } from 'lucide-react';
+import { X, Receipt } from 'lucide-react';
 
 interface ReceiptModalProps {
   isOpen: boolean;
@@ -18,7 +18,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, receiptUrl
         {/* Header */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <ReceiptIcon className="w-6 h-6 text-gray-500" />
+            <Receipt className="w-6 h-6 text-gray-500" />
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                 Receipt - ₹{expense.amount?.toLocaleString()}
@@ -32,7 +32,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, receiptUrl
             onClick={onClose}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
-            <XMarkIcon className="w-6 h-6 text-gray-500" />
+            <X className="w-6 h-6 text-gray-500" />
           </button>
         </div>
 

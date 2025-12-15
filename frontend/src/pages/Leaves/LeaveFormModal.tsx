@@ -1,192 +1,215 @@
-// src/components/EMS/Leaves/LeaveFormModal.tsx - COMPLETE FORM
+// src/pages/Leaves/LeaveFormModal.tsx
 import React, { useState, useEffect } from 'react';
-import { useLeaves } from '../../../hooks/useLeaves';
-import {
-  XMarkIcon,
-  CheckIcon
-} from 'lucide-react';
+import { useLeaves } from '../../hooks/useLeaves';
+import { useAuth } from '../../context/AuthContext';
+import { LeaveFormData, LeaveType } from '../../types/leave.types';
 
-const LeaveFormModal: React.FC<{
+interface LeaveFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-}> = ({ isOpen, onClose, onSuccess }) => {
-  const { balances, fetchLeaveBalance, applyLeave } = useLeaves();
+}
 
-  const [formData, setFormData] = useState({
-    leaveType: '',
-    startDate: '',
-    endDate: '',
-    reason: '',
-    halfDay: false
-  });
-  const [errors, setErrors] = useState({});
+const defaultForm: LeaveFormData = {
+  leaveType: '' as LeaveType,
+  startDate: new Date().toISOString().split('T')[0],
+  endDate: new Date().toISOString().split('T')[0],
+  reason: '',
+  halfDay: false,
+};
+
+const LeaveFormModal: React.FC<LeaveFormModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+}) => {
+  const { applyLeave } = useLeaves();
+  const { user } = useAuth();
+
+  const [form, setForm] = useState<LeaveFormData>(defaultForm);
   const [loading, setLoading] = useState(false);
-  const [balance, setBalance] = useState<any>(null);
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof LeaveFormData, string>>
+  >({});
 
   useEffect(() => {
     if (isOpen) {
-      fetchLeaveBalance();
+      setForm({
+        ...defaultForm,
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+      });
+      setErrors({});
+      setLoading(false);
     }
   }, [isOpen]);
 
-  const validateForm = () => {
-    const newErrors: any = {};
-    
-    if (!formData.leaveType) newErrors.leaveType = 'Leave type is required';
-    if (!formData.startDate) newErrors.startDate = 'Start date is required';
-    if (!formData.endDate) newErrors.endDate = 'End date is required';
-    if (!formData.reason || formData.reason.length < 10) newErrors.reason = 'Reason must be at least 10 characters';
-    
-    if (formData.startDate && formData.endDate) {
-      const start = new Date(formData.startDate);
-      const end = new Date(formData.endDate);
-      if (start > end) newErrors.endDate = 'End date must be after start date';
+  if (!isOpen) return null;
+
+  const validate = () => {
+    const next: Partial<Record<keyof LeaveFormData, string>> = {};
+    if (!form.leaveType) next.leaveType = 'Leave type is required';
+    if (!form.startDate) next.startDate = 'Start date is required';
+    if (!form.endDate) next.endDate = 'End date is required';
+    if (!form.reason || form.reason.length < 5) {
+      next.reason = 'Reason must be at least 5 characters';
     }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
-    
+    if (!validate()) return;
     setLoading(true);
     try {
-      await applyLeave(formData);
+      // send codes like "SICK", "CASUAL", ...
+      await applyLeave(form);
       onSuccess();
       onClose();
-    } catch (error: any) {
-      console.error('Error applying leave:', error);
+    } catch (err) {
+      console.error('Error applying leave:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Apply for Leave</h2>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <XMarkIcon className="w-5 h-5 text-gray-500" />
-            </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Apply for Leave
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {user?.name}
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-900 dark:hover:text-white text-sm"
+          >
+            ✕
+          </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
           {/* Leave Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Leave Type *
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Leave Type
             </label>
             <select
-              value={formData.leaveType}
-              onChange={(e) => setFormData({ ...formData, leaveType: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              value={form.leaveType}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  leaveType: e.target.value as LeaveType,
+                })
+              }
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
             >
-              <option value="">Select leave type</option>
-              {balances.map((balance: any) => (
-                <option key={balance._id} value={balance.leaveType}>
-                  {balance.leaveType} ({balance.balance} days available)
-                </option>
-              ))}
+              <option value="">Select type</option>
+              <option value="CASUAL">Casual</option>
+              <option value="SICK">Sick</option>
+              <option value="EARNED">Earned</option>
+              <option value="UNPAID">Unpaid</option>
             </select>
             {errors.leaveType && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.leaveType}</p>
+              <p className="mt-1 text-xs text-red-600">{errors.leaveType}</p>
             )}
           </div>
 
-          {/* Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Start Date *
-              </label>
-              <input
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              />
-              {errors.startDate && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.startDate}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                End Date *
-              </label>
-              <input
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              />
-              {errors.endDate && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.endDate}</p>
-              )}
-            </div>
+          {/* Start Date */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Start Date
+            </label>
+            <input
+              type="date"
+              value={form.startDate}
+              onChange={(e) =>
+                setForm({ ...form, startDate: e.target.value })
+              }
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
+            />
+            {errors.startDate && (
+              <p className="mt-1 text-xs text-red-600">{errors.startDate}</p>
+            )}
           </div>
 
-          {/* Half Day */}
-          <div className="flex items-center">
+          {/* End Date */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              End Date
+            </label>
+            <input
+              type="date"
+              value={form.endDate}
+              onChange={(e) =>
+                setForm({ ...form, endDate: e.target.value })
+              }
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
+            />
+            {errors.endDate && (
+              <p className="mt-1 text-xs text-red-600">{errors.endDate}</p>
+            )}
+          </div>
+
+          {/* Half-day */}
+          <div className="flex items-center gap-2">
             <input
               id="halfDay"
               type="checkbox"
-              checked={formData.halfDay}
-              onChange={(e) => setFormData({ ...formData, halfDay: e.target.checked })}
-              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded"
+              checked={form.halfDay}
+              onChange={(e) =>
+                setForm({ ...form, halfDay: e.target.checked })
+              }
+              className="h-4 w-4 text-indigo-600 border-slate-300 rounded"
             />
-            <label htmlFor="halfDay" className="ml-2 block text-sm text-gray-900 dark:text-white">
-              Half day leave
+            <label
+              htmlFor="halfDay"
+              className="text-sm text-slate-700 dark:text-slate-300"
+            >
+              Half day
             </label>
           </div>
 
           {/* Reason */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Reason *
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Reason
             </label>
             <textarea
-              rows={4}
-              value={formData.reason}
-              onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-              placeholder="Please provide a detailed reason for your leave request..."
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-vertical"
+              rows={3}
+              value={form.reason}
+              onChange={(e) =>
+                setForm({ ...form, reason: e.target.value })
+              }
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
+              placeholder="Provide a short explanation..."
             />
             {errors.reason && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.reason}</p>
+              <p className="mt-1 text-xs text-red-600">{errors.reason}</p>
             )}
           </div>
 
-          {/* Submit Button */}
-          <div className="pt-4">
+          <div className="pt-2 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-sm"
+            >
+              Cancel
+            </button>
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 px-6 rounded-xl shadow-lg hover:from-indigo-700 hover:to-purple-700 focus:ring-4 focus:ring-indigo-500 font-semibold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>Submitting...</span>
-                </>
-              ) : (
-                <>
-                  <CheckIcon className="w-5 h-5" />
-                  <span>Submit Leave Application</span>
-                </>
-              )}
+              {loading ? 'Submitting...' : 'Submit Leave Request'}
             </button>
           </div>
         </form>
