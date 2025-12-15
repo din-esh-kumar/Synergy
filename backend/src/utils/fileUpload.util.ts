@@ -1,16 +1,24 @@
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+/**
+ * Multer configuration for MongoDB storage
+ * Files kept in memory as req.file.buffer for controllers to save to MongoDB
+ */
 
-// File filter
+// File filter (unchanged)
 const fileFilter = (req: any, file: Express.Multer.File, cb: Function) => {
-  const allowedTypes = ['application/pdf', 'text/plain', 'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+  const allowedTypes = [
+    'application/pdf', 
+    'text/plain', 
+    'image/png', 
+    'image/jpeg', 
+    'image/jpg', 
+    'image/gif', 
+    'application/msword', 
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+    'application/vnd.ms-excel', 
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ];
 
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
@@ -19,16 +27,8 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: Function) => {
   }
 };
 
-// Storage configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  },
-});
+// Memory storage - NO DISK WRITES
+const storage = multer.memoryStorage();
 
 export const upload = multer({
   storage,

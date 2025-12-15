@@ -1,19 +1,40 @@
+// src/controllers/timesheet.controller.ts
 import { Request, Response } from 'express';
+import mongoose, { Types } from 'mongoose';
 import Timesheet from '../models/Timesheet.model';
 import User from '../models/User.model';
 import { createNotification } from '../utils/notificationEngine';
 
 /**
+ * 🔍 Validate ObjectId safely
+ */
+const validateObjectId = (id: any): string | null => {
+  if (!id) return null;
+  try {
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      return new mongoose.Types.ObjectId(id).toString();
+    }
+  } catch (error) {
+    return null;
+  }
+  return null;
+};
+
+/**
  * 📝 Create Timesheet (EMPLOYEE / MANAGER / ADMIN)
- * Expects body: { projectId, date, hoursWorked | hours, taskDescription | description, userId? }
- * - Employee: userId is ignored, always their own id
- * - Manager/Admin: may pass userId to create for someone else
  */
 export const createTimesheet = async (req: Request, res: Response) => {
   try {
     const authUser = (req as any).user;
-    const authUserId = authUser._id;
-    const authRole = authUser.role;
+    const authUserId = validateObjectId(authUser?._id);
+    const authRole = authUser?.role;
+
+    if (!authUserId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: user not found',
+      });
+    }
 
     const {
       projectId,
@@ -28,15 +49,28 @@ export const createTimesheet = async (req: Request, res: Response) => {
     const effectiveHours = hours ?? hoursWorked;
     const finalDescription = description ?? taskDescription;
 
-    const employeeId =
-      authRole === 'ADMIN' || authRole === 'MANAGER'
-        ? userId || authUserId
-        : authUserId;
+    const employeeId = authRole === 'ADMIN' || authRole === 'MANAGER'
+      ? validateObjectId(userId) || authUserId
+      : authUserId;
+
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Employee ID required for admin/manager',
+      });
+    }
 
     if (!projectId || !date || effectiveHours == null || !finalDescription) {
       return res.status(400).json({
         success: false,
         message: 'Project, date, hours worked, and description are required',
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid project ID',
       });
     }
 
@@ -50,8 +84,8 @@ export const createTimesheet = async (req: Request, res: Response) => {
 
     // Prevent duplicate entry for same employee + project + date
     const existingEntry = await Timesheet.findOne({
-      employeeId,
-      projectId,
+      employeeId: new mongoose.Types.ObjectId(employeeId),
+      projectId: new mongoose.Types.ObjectId(projectId),
       date: new Date(date),
     });
 
@@ -63,8 +97,8 @@ export const createTimesheet = async (req: Request, res: Response) => {
     }
 
     const timesheet = new Timesheet({
-      employeeId,
-      projectId,
+      employeeId: new mongoose.Types.ObjectId(employeeId),
+      projectId: new mongoose.Types.ObjectId(projectId),
       date: new Date(date),
       hoursWorked: hoursNum,
       description: finalDescription,
@@ -91,14 +125,23 @@ export const createTimesheet = async (req: Request, res: Response) => {
  */
 export const getMyTimesheets = async (req: Request, res: Response) => {
   try {
-    const employeeId = (req as any).user._id;
-    const { status, projectId, startDate, endDate, page = 1, limit = 10 } =
-      req.query;
+    const employeeId = validateObjectId((req as any).user?._id);
+    
+    if (!employeeId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: user not found',
+      });
+    }
 
-    const filter: any = { employeeId };
+    const { status, projectId, startDate, endDate, page = '1', limit = '10' } = req.query;
+
+    const filter: any = { 
+      employeeId: new mongoose.Types.ObjectId(employeeId)
+    };
 
     if (status) filter.status = status;
-    if (projectId) filter.projectId = projectId;
+    if (projectId) filter.projectId = new mongoose.Types.ObjectId(projectId as string);
     if (startDate && endDate) {
       filter.date = {
         $gte: new Date(startDate as string),
@@ -141,8 +184,22 @@ export const getMyTimesheets = async (req: Request, res: Response) => {
 export const getTimesheetById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user._id;
-    const userRole = (req as any).user.role;
+    const userId = validateObjectId((req as any).user?._id);
+    const userRole = (req as any).user?.role;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: user not found',
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid timesheet ID',
+      });
+    }
 
     const timesheet = await Timesheet.findById(id)
       .populate('employeeId', 'name email designation')
@@ -185,7 +242,22 @@ export const getTimesheetById = async (req: Request, res: Response) => {
 export const updateTimesheet = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const employeeId = (req as any).user._id;
+    const employeeId = validateObjectId((req as any).user?._id);
+
+    if (!employeeId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: user not found',
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid timesheet ID',
+      });
+    }
+
     const { hours, hoursWorked, taskDescription, description } = req.body;
 
     const timesheet = await Timesheet.findById(id);
@@ -250,7 +322,21 @@ export const updateTimesheet = async (req: Request, res: Response) => {
 export const deleteTimesheet = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const employeeId = (req as any).user._id;
+    const employeeId = validateObjectId((req as any).user?._id);
+
+    if (!employeeId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: user not found',
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid timesheet ID',
+      });
+    }
 
     const timesheet = await Timesheet.findById(id);
 
@@ -295,13 +381,24 @@ export const deleteTimesheet = async (req: Request, res: Response) => {
 export const submitTimesheet = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const employeeId = (req as any).user._id;
+    const employeeId = validateObjectId((req as any).user?._id);
     const employeeName = (req as any).user.name || (req as any).user.email;
 
-    const timesheet = await Timesheet.findById(id).populate(
-      'projectId',
-      'name',
-    );
+    if (!employeeId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: user not found',
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid timesheet ID',
+      });
+    }
+
+    const timesheet = await Timesheet.findById(id).populate('projectId', 'name');
 
     if (!timesheet) {
       return res.status(404).json({
@@ -328,14 +425,19 @@ export const submitTimesheet = async (req: Request, res: Response) => {
     timesheet.submittedAt = new Date();
     await timesheet.save();
 
+    // ✅ SAFE: Notify managers with validated IDs
     const managers = await User.find({
       role: { $in: ['ADMIN', 'MANAGER'] },
       status: true,
     }).select('_id name');
 
-    if (managers.length > 0) {
+    const validManagerIds = managers
+      .map((m) => validateObjectId(m._id))
+      .filter((id): id is string => !!id);
+
+    if (validManagerIds.length > 0) {
       await createNotification({
-        userIds: managers.map((m) => m._id.toString()),
+        userIds: validManagerIds,
         type: 'system',
         action: 'created',
         title: 'Timesheet Submitted',
@@ -369,13 +471,24 @@ export const submitTimesheet = async (req: Request, res: Response) => {
 export const approveTimesheet = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const approverId = (req as any).user._id;
+    const approverId = validateObjectId((req as any).user?._id);
     const approverName = (req as any).user.name || (req as any).user.email;
 
-    const timesheet = await Timesheet.findById(id).populate(
-      'employeeId',
-      'name email',
-    );
+    if (!approverId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized',
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid timesheet ID',
+      });
+    }
+
+    const timesheet = await Timesheet.findById(id).populate('employeeId', 'name email');
 
     if (!timesheet) {
       return res.status(404).json({
@@ -392,23 +505,27 @@ export const approveTimesheet = async (req: Request, res: Response) => {
     }
 
     timesheet.status = 'approved';
-    timesheet.approvedBy = approverId;
+    timesheet.approvedBy = new mongoose.Types.ObjectId(approverId);
     timesheet.approvedAt = new Date();
     timesheet.processedAt = new Date();
     await timesheet.save();
 
-    await createNotification({
-      userId: timesheet.employeeId.toString(),
-      type: 'system',
-      action: 'completed',
-      title: 'Timesheet Approved',
-      message: `Your timesheet for ${timesheet.date.toLocaleDateString()} has been approved by ${approverName}`,
-      entityType: 'timesheet',
-      entityId: timesheet._id.toString(),
-      icon: 'check-circle',
-      color: '#10b981',
-      actionUrl: `/timesheets/${timesheet._id}`,
-    });
+    // ✅ SAFE: Notify employee with validated ID
+    const employeeId = validateObjectId(timesheet.employeeId);
+    if (employeeId) {
+      await createNotification({
+        userId: employeeId,
+        type: 'system',
+        action: 'completed',
+        title: 'Timesheet Approved',
+        message: `Your timesheet for ${timesheet.date.toLocaleDateString()} has been approved by ${approverName}`,
+        entityType: 'timesheet',
+        entityId: timesheet._id.toString(),
+        icon: 'check-circle',
+        color: '#10b981',
+        actionUrl: `/timesheets/${timesheet._id}`,
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -429,9 +546,16 @@ export const approveTimesheet = async (req: Request, res: Response) => {
 export const rejectTimesheet = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const approverId = (req as any).user._id;
+    const approverId = validateObjectId((req as any).user?._id);
     const approverName = (req as any).user.name || (req as any).user.email;
     const { rejectionReason } = req.body;
+
+    if (!approverId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized',
+      });
+    }
 
     if (!rejectionReason) {
       return res.status(400).json({
@@ -440,10 +564,14 @@ export const rejectTimesheet = async (req: Request, res: Response) => {
       });
     }
 
-    const timesheet = await Timesheet.findById(id).populate(
-      'employeeId',
-      'name email',
-    );
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid timesheet ID',
+      });
+    }
+
+    const timesheet = await Timesheet.findById(id).populate('employeeId', 'name email');
 
     if (!timesheet) {
       return res.status(404).json({
@@ -460,23 +588,27 @@ export const rejectTimesheet = async (req: Request, res: Response) => {
     }
 
     timesheet.status = 'rejected';
-    timesheet.approvedBy = approverId;
+    timesheet.approvedBy = new mongoose.Types.ObjectId(approverId);
     timesheet.rejectionReason = rejectionReason;
     timesheet.processedAt = new Date();
     await timesheet.save();
 
-    await createNotification({
-      userId: timesheet.employeeId.toString(),
-      type: 'system',
-      action: 'deleted',
-      title: 'Timesheet Rejected',
-      message: `Your timesheet has been rejected by ${approverName}: ${rejectionReason}`,
-      entityType: 'timesheet',
-      entityId: timesheet._id.toString(),
-      icon: 'x-circle',
-      color: '#ef4444',
-      actionUrl: `/timesheets/${timesheet._id}`,
-    });
+    // ✅ SAFE: Notify employee with validated ID
+    const employeeId = validateObjectId(timesheet.employeeId);
+    if (employeeId) {
+      await createNotification({
+        userId: employeeId,
+        type: 'system',
+        action: 'deleted',
+        title: 'Timesheet Rejected',
+        message: `Your timesheet has been rejected by ${approverName}: ${rejectionReason}`,
+        entityType: 'timesheet',
+        entityId: timesheet._id.toString(),
+        icon: 'x-circle',
+        color: '#ef4444',
+        actionUrl: `/timesheets/${timesheet._id}`,
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -502,15 +634,15 @@ export const getAllTimesheets = async (req: Request, res: Response) => {
       employeeId,
       startDate,
       endDate,
-      page = 1,
-      limit = 10,
+      page = '1',
+      limit = '10',
     } = req.query;
 
     const filter: any = {};
 
     if (status) filter.status = status;
-    if (projectId) filter.projectId = projectId;
-    if (employeeId) filter.employeeId = employeeId;
+    if (projectId) filter.projectId = new mongoose.Types.ObjectId(projectId as string);
+    if (employeeId) filter.employeeId = new mongoose.Types.ObjectId(employeeId as string);
     if (startDate && endDate) {
       filter.date = {
         $gte: new Date(startDate as string),

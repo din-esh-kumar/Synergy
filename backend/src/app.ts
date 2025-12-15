@@ -43,7 +43,6 @@ import teamRoutes from './routes/teams.routes';
 import issueRoutes from './routes/issue.routes';
 import notificationsRoutes from './routes/notifications.routes';
 import chatRoutes from './routes/chat.routes';
-import documentRoutes from './routes/document.routes';
 import settingsRoutes from './routes/settings.routes';
 
 // NEW EMS routes
@@ -73,7 +72,6 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/issues', issueRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/chat', chatRoutes);
-app.use('/api/documents', documentRoutes);
 app.use('/api/settings', settingsRoutes);
 
 // EMS API routes

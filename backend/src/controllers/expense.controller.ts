@@ -1,19 +1,32 @@
 // src/controllers/expense.controller.ts
 import { Request, Response } from 'express';
+import mongoose, { Types } from 'mongoose';
 import Expense from '../models/Expense.model';
 import User from '../models/User.model';
 import { createNotification } from '../utils/notificationEngine';
-import path from 'path';
-import fs from 'fs';
 
 /**
- * 💵 Create Expense (EMPLOYEE)
+ * 🔍 Validate ObjectId safely
+ */
+const validateObjectId = (id: any): string | null => {
+  if (!id) return null;
+  try {
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      return new mongoose.Types.ObjectId(id).toString();
+    }
+  } catch (error) {
+    return null;
+  }
+  return null;
+};
+
+/**
+ * 💵 Create Expense (EMPLOYEE) - MongoDB Storage
  */
 export const createExpense = async (req: Request, res: Response) => {
   try {
     // Support both _id and id on req.user
-    const employeeId =
-      (req as any).user?._id || (req as any).user?.id;
+    const employeeId = validateObjectId((req as any).user?._id || (req as any).user?.id);
 
     if (!employeeId) {
       return res.status(401).json({
@@ -22,8 +35,7 @@ export const createExpense = async (req: Request, res: Response) => {
       });
     }
 
-    const employeeName =
-      (req as any).user.name || (req as any).user.email;
+    const employeeName = (req as any).user.name || (req as any).user.email;
 
     const {
       category,
@@ -38,42 +50,49 @@ export const createExpense = async (req: Request, res: Response) => {
     if (!category || !amount || !date || !description) {
       return res.status(400).json({
         success: false,
-        message:
-          'Category, amount, date, and description are required',
+        message: 'Category, amount, date, and description are required',
       });
     }
 
-    // Handle receipt upload (disk storage from multerConfig)
-    let receiptUrl: string | undefined;
-    if (req.file) {
-      receiptUrl = `/uploads/${req.file.filename}`;
-    }
-
-    const expense = new Expense({
-      employeeId,
+    // Handle receipt upload (MongoDB buffer storage from memoryStorage)
+    const expenseData: any = {
+      employeeId: new mongoose.Types.ObjectId(employeeId),
       category,
       amount: Number(amount),
       currency: currency || 'INR',
       date,
       description,
-      projectId: projectId || undefined,
+      projectId: projectId ? new mongoose.Types.ObjectId(projectId) : undefined,
       merchantName: merchantName || undefined,
-      receiptUrl,
-      status: 'submitted', // initial status
+      status: 'submitted',
       submittedAt: new Date(),
-    });
+    };
 
+    // Store receipt as embedded binary data (MongoDB)
+    if (req.file) {
+      expenseData.receiptData = req.file.buffer;
+      expenseData.receiptMimeType = req.file.mimetype;
+      expenseData.receiptFilename = req.file.originalname;
+      expenseData.receiptSize = req.file.size;
+      expenseData.receiptUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    }
+
+    const expense = new Expense(expenseData);
     await expense.save();
 
-    // Notify admins/managers
+    // ✅ SAFE: Notify admins/managers with validated IDs
     const managers = await User.find({
       role: { $in: ['ADMIN', 'MANAGER'] },
       status: true,
     }).select('_id name');
 
-    if (managers.length > 0) {
+    const validManagerIds = managers
+      .map((m) => validateObjectId(m._id))
+      .filter((id): id is string => !!id);
+
+    if (validManagerIds.length > 0) {
       await createNotification({
-        userIds: managers.map((m) => m._id.toString()),
+        userIds: validManagerIds,
         type: 'system',
         action: 'created',
         title: 'New Expense Claim',
@@ -104,8 +123,7 @@ export const createExpense = async (req: Request, res: Response) => {
  */
 export const getMyExpenses = async (req: Request, res: Response) => {
   try {
-    const employeeId =
-      (req as any).user?._id || (req as any).user?.id;
+    const employeeId = validateObjectId((req as any).user?._id || (req as any).user?.id);
 
     if (!employeeId) {
       return res.status(401).json({
@@ -119,11 +137,11 @@ export const getMyExpenses = async (req: Request, res: Response) => {
       category,
       startDate,
       endDate,
-      page = 1,
-      limit = 10,
+      page = '1',
+      limit = '10',
     } = req.query;
 
-    const filter: any = { employeeId };
+    const filter: any = { employeeId: new mongoose.Types.ObjectId(employeeId) };
 
     if (status) filter.status = status;
     if (category) filter.category = category;
@@ -169,9 +187,15 @@ export const getMyExpenses = async (req: Request, res: Response) => {
 export const getExpenseById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId =
-      (req as any).user?._id || (req as any).user?.id;
+    const userId = validateObjectId((req as any).user?._id || (req as any).user?.id);
     const userRole = (req as any).user.role;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid expense ID',
+      });
+    }
 
     const expense = await Expense.findById(id)
       .populate('employeeId', 'name email designation')
@@ -188,7 +212,7 @@ export const getExpenseById = async (req: Request, res: Response) => {
     if (
       userRole !== 'ADMIN' &&
       userRole !== 'MANAGER' &&
-      expense.employeeId.toString() !== String(userId)
+      expense.employeeId.toString() !== userId
     ) {
       return res.status(403).json({
         success: false,
@@ -209,18 +233,24 @@ export const getExpenseById = async (req: Request, res: Response) => {
 };
 
 /**
- * ✏️ Update Expense (EMPLOYEE - before approval)
+ * ✏️ Update Expense (EMPLOYEE - before approval) - MongoDB Storage
  */
 export const updateExpense = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const employeeId =
-      (req as any).user?._id || (req as any).user?.id;
+    const employeeId = validateObjectId((req as any).user?._id || (req as any).user?.id);
 
     if (!employeeId) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized: employeeId missing on user',
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid expense ID',
       });
     }
 
@@ -243,14 +273,13 @@ export const updateExpense = async (req: Request, res: Response) => {
       });
     }
 
-    if (expense.employeeId.toString() !== String(employeeId)) {
+    if (expense.employeeId.toString() !== employeeId) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this expense',
       });
     }
 
-    // Only editable while submitted/draft
     if (expense.status !== 'submitted' && expense.status !== 'draft') {
       return res.status(400).json({
         success: false,
@@ -263,19 +292,17 @@ export const updateExpense = async (req: Request, res: Response) => {
     if (currency) expense.currency = currency;
     if (date) expense.date = date;
     if (description) expense.description = description;
-    if (projectId !== undefined) expense.projectId = projectId;
+    if (projectId !== undefined) {
+      expense.projectId = projectId ? new mongoose.Types.ObjectId(projectId) : null;
+    }
     if (merchantName !== undefined) expense.merchantName = merchantName;
 
     if (req.file) {
-      // delete old receipt if exists (defensive join on relative path)
-      if (expense.receiptUrl) {
-        const safePath = expense.receiptUrl.replace(/^\/+/, '');
-        const oldPath = path.join(process.cwd(), safePath);
-        if (fs.existsSync(oldPath)) {
-          fs.unlinkSync(oldPath);
-        }
-      }
-      expense.receiptUrl = `/uploads/${req.file.filename}`;
+      expense.receiptData = req.file.buffer;
+      expense.receiptMimeType = req.file.mimetype;
+      expense.receiptFilename = req.file.originalname;
+      expense.receiptSize = req.file.size;
+      expense.receiptUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     }
 
     await expense.save();
@@ -299,13 +326,19 @@ export const updateExpense = async (req: Request, res: Response) => {
 export const deleteExpense = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const employeeId =
-      (req as any).user?._id || (req as any).user?.id;
+    const employeeId = validateObjectId((req as any).user?._id || (req as any).user?.id);
 
     if (!employeeId) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized: employeeId missing on user',
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid expense ID',
       });
     }
 
@@ -318,7 +351,7 @@ export const deleteExpense = async (req: Request, res: Response) => {
       });
     }
 
-    if (expense.employeeId.toString() !== String(employeeId)) {
+    if (expense.employeeId.toString() !== employeeId) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to delete this expense',
@@ -330,14 +363,6 @@ export const deleteExpense = async (req: Request, res: Response) => {
         success: false,
         message: 'Cannot delete processed expense',
       });
-    }
-
-    if (expense.receiptUrl) {
-      const safePath = expense.receiptUrl.replace(/^\/+/, '');
-      const receiptPath = path.join(process.cwd(), safePath);
-      if (fs.existsSync(receiptPath)) {
-        fs.unlinkSync(receiptPath);
-      }
     }
 
     await Expense.findByIdAndDelete(id);
@@ -360,15 +385,24 @@ export const deleteExpense = async (req: Request, res: Response) => {
 export const approveExpense = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const approverId =
-      (req as any).user?._id || (req as any).user?.id;
-    const approverName =
-      (req as any).user.name || (req as any).user.email;
+    const approverId = validateObjectId((req as any).user?._id || (req as any).user?.id);
+    const approverName = (req as any).user.name || (req as any).user.email;
 
-    const expense = await Expense.findById(id).populate(
-      'employeeId',
-      'name email'
-    );
+    if (!approverId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized',
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid expense ID',
+      });
+    }
+
+    const expense = await Expense.findById(id).populate('employeeId', 'name email');
 
     if (!expense) {
       return res.status(404).json({
@@ -385,23 +419,26 @@ export const approveExpense = async (req: Request, res: Response) => {
     }
 
     expense.status = 'approved';
-    expense.approvedBy = approverId;
+    expense.approvedBy = new mongoose.Types.ObjectId(approverId);
     expense.approvedAt = new Date();
     expense.processedAt = new Date();
     await expense.save();
 
-    await createNotification({
-      userId: expense.employeeId.toString(),
-      type: 'system',
-      action: 'completed',
-      title: 'Expense Approved',
-      message: `Your ${expense.category} expense of ₹${expense.amount} has been approved by ${approverName}`,
-      entityType: 'expense',
-      entityId: expense._id.toString(),
-      icon: 'check-circle',
-      color: '#10b981',
-      actionUrl: `/expenses/${expense._id}`,
-    });
+    const employeeId = validateObjectId(expense.employeeId);
+    if (employeeId) {
+      await createNotification({
+        userId: employeeId,
+        type: 'system',
+        action: 'completed',
+        title: 'Expense Approved',
+        message: `Your ${expense.category} expense of ₹${expense.amount} has been approved by ${approverName}`,
+        entityType: 'expense',
+        entityId: expense._id.toString(),
+        icon: 'check-circle',
+        color: '#10b981',
+        actionUrl: `/expenses/${expense._id}`,
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -422,11 +459,16 @@ export const approveExpense = async (req: Request, res: Response) => {
 export const rejectExpense = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const approverId =
-      (req as any).user?._id || (req as any).user?.id;
-    const approverName =
-      (req as any).user.name || (req as any).user.email;
+    const approverId = validateObjectId((req as any).user?._id || (req as any).user?.id);
+    const approverName = (req as any).user.name || (req as any).user.email;
     const { rejectionReason } = req.body;
+
+    if (!approverId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized',
+      });
+    }
 
     if (!rejectionReason) {
       return res.status(400).json({
@@ -435,10 +477,14 @@ export const rejectExpense = async (req: Request, res: Response) => {
       });
     }
 
-    const expense = await Expense.findById(id).populate(
-      'employeeId',
-      'name email'
-    );
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid expense ID',
+      });
+    }
+
+    const expense = await Expense.findById(id).populate('employeeId', 'name email');
 
     if (!expense) {
       return res.status(404).json({
@@ -455,23 +501,26 @@ export const rejectExpense = async (req: Request, res: Response) => {
     }
 
     expense.status = 'rejected';
-    expense.approvedBy = approverId;
+    expense.approvedBy = new mongoose.Types.ObjectId(approverId);
     expense.rejectionReason = rejectionReason;
     expense.processedAt = new Date();
     await expense.save();
 
-    await createNotification({
-      userId: expense.employeeId.toString(),
-      type: 'system',
-      action: 'deleted',
-      title: 'Expense Rejected',
-      message: `Your ${expense.category} expense has been rejected by ${approverName}: ${rejectionReason}`,
-      entityType: 'expense',
-      entityId: expense._id.toString(),
-      icon: 'x-circle',
-      color: '#ef4444',
-      actionUrl: `/expenses/${expense._id}`,
-    });
+    const employeeId = validateObjectId(expense.employeeId);
+    if (employeeId) {
+      await createNotification({
+        userId: employeeId,
+        type: 'system',
+        action: 'deleted',
+        title: 'Expense Rejected',
+        message: `Your ${expense.category} expense has been rejected by ${approverName}: ${rejectionReason}`,
+        entityType: 'expense',
+        entityId: expense._id.toString(),
+        icon: 'x-circle',
+        color: '#ef4444',
+        actionUrl: `/expenses/${expense._id}`,
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -497,15 +546,15 @@ export const getAllExpenses = async (req: Request, res: Response) => {
       employeeId,
       startDate,
       endDate,
-      page = 1,
-      limit = 10,
+      page = '1',
+      limit = '10',
     } = req.query;
 
     const filter: any = {};
 
     if (status) filter.status = status;
     if (category) filter.category = category;
-    if (employeeId) filter.employeeId = employeeId;
+    if (employeeId) filter.employeeId = new mongoose.Types.ObjectId(employeeId as string);
     if (startDate && endDate) {
       filter.date = {
         $gte: new Date(startDate as string),

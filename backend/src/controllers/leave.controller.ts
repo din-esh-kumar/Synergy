@@ -1,6 +1,6 @@
 // src/controllers/leave.controller.ts
 import { Request, Response } from 'express';
-import mongoose from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import Leave, { LeaveStatus } from '../models/Leave.model';
 import LeaveBalance from '../models/LeaveBalance.model';
 import User from '../models/User.model';
@@ -8,18 +8,30 @@ import LeaveType from '../models/LeaveType.model';
 import { createNotification } from '../utils/notificationEngine';
 import { emitNotification } from '../utils/socketEmitter';
 
+/**
+ * 🔍 Validate ObjectId safely
+ */
+const validateObjectId = (id: any): string | null => {
+  if (!id) return null;
+  try {
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      return new mongoose.Types.ObjectId(id).toString();
+    }
+  } catch (error) {
+    return null;
+  }
+  return null;
+};
+
 /** 📝 Apply for Leave (EMPLOYEE) */
 export const applyLeave = async (req: Request, res: Response) => {
   try {
-    const userId =
-      (req as any).user?._id ||
-      (req as any).user?.id ||
-      (req as any).userId;
+    const userId = validateObjectId(
+      (req as any).user?._id || (req as any).user?.id || (req as any).userId
+    );
 
     const employeeName =
-      (req as any).user?.name ||
-      (req as any).user?.email ||
-      'Employee';
+      (req as any).user?.name || (req as any).user?.email || 'Employee';
 
     const {
       leaveType,
@@ -64,14 +76,14 @@ export const applyLeave = async (req: Request, res: Response) => {
     const year = new Date(startDate).getFullYear();
 
     let balance = await LeaveBalance.findOne({
-      userId,
+      userId: new mongoose.Types.ObjectId(userId),
       leaveTypeId,
       year,
     });
 
     if (!balance) {
       balance = await LeaveBalance.create({
-        userId,
+        userId: new mongoose.Types.ObjectId(userId),
         leaveTypeId,
         year,
         balance: leaveTypeDoc.maxDays ?? 0,
@@ -95,11 +107,7 @@ export const applyLeave = async (req: Request, res: Response) => {
       });
     }
 
-    const rawDays =
-      Math.ceil(
-        (end.getTime() - start.getTime()) / (1000 * 3600 * 24),
-      ) + 1;
-
+    const rawDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
     const duration = halfDay ? 0.5 : rawDays;
 
     if (duration > balance.balance) {
@@ -110,7 +118,7 @@ export const applyLeave = async (req: Request, res: Response) => {
     }
 
     const leave = new Leave({
-      userId,
+      userId: new mongoose.Types.ObjectId(userId),
       leaveTypeId,
       startDate,
       endDate,
@@ -126,14 +134,19 @@ export const applyLeave = async (req: Request, res: Response) => {
     balance.balance -= duration;
     await balance.save();
 
+    // ✅ SAFE: Notify managers with validated IDs
     const managers = await User.find({
       role: { $in: ['ADMIN', 'MANAGER'] },
       status: true,
     }).select('_id name email');
 
-    if (managers.length > 0) {
+    const validManagerIds = managers
+      .map((m) => validateObjectId(m._id))
+      .filter((id): id is string => !!id);
+
+    if (validManagerIds.length > 0) {
       await createNotification({
-        userIds: managers.map((m) => m._id.toString()),
+        userIds: validManagerIds,
         type: 'system',
         action: 'created',
         title: 'New Leave Application',
@@ -145,8 +158,9 @@ export const applyLeave = async (req: Request, res: Response) => {
         actionUrl: `/approvals?tab=leaves&id=${leave._id}`,
       });
 
-      managers.forEach((m) => {
-        emitNotification(m._id.toString(), {
+      // Safe socket emission
+      validManagerIds.forEach((managerId) => {
+        emitNotification(managerId, {
           title: 'New Leave Application',
           body: `${employeeName} applied for leave (${duration} days)`,
           entityType: 'leave',
@@ -171,12 +185,9 @@ export const applyLeave = async (req: Request, res: Response) => {
 /** 📋 Get My Leaves (EMPLOYEE) */
 export const getMyLeaves = async (req: Request, res: Response) => {
   try {
-    const userId =
-      (req as any).user?._id ||
-      (req as any).user?.id ||
-      (req as any).userId;
-
-    const { status, year } = req.query;
+    const userId = validateObjectId(
+      (req as any).user?._id || (req as any).user?.id || (req as any).userId
+    );
 
     if (!userId) {
       return res.status(401).json({
@@ -185,7 +196,9 @@ export const getMyLeaves = async (req: Request, res: Response) => {
       });
     }
 
-    const filter: any = { userId };
+    const { status, year } = req.query;
+
+    const filter: any = { userId: new mongoose.Types.ObjectId(userId) };
 
     if (status) {
       filter.status = status;
@@ -195,15 +208,16 @@ export const getMyLeaves = async (req: Request, res: Response) => {
       const startYear = new Date(`${year}-01-01T00:00:00.000Z`);
       const endYear = new Date(`${year}-12-31T23:59:59.999Z`);
       filter.startDate = {
-        $gte: startYear.toISOString(),
-        $lte: endYear.toISOString(),
+        $gte: startYear,
+        $lte: endYear,
       };
     }
 
     const leaves = await Leave.find(filter)
       .sort({ createdAt: -1 })
       .populate('userId', 'name email designation')
-      .populate('leaveTypeId', 'name code color');
+      .populate('leaveTypeId', 'name code color')
+      .populate('approvedBy', 'name email');
 
     res.status(200).json({
       success: true,
@@ -222,16 +236,22 @@ export const getMyLeaves = async (req: Request, res: Response) => {
 export const getLeaveById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId =
-      (req as any).user?._id ||
-      (req as any).user?.id ||
-      (req as any).userId;
+    const userId = validateObjectId(
+      (req as any).user?._id || (req as any).user?.id || (req as any).userId
+    );
     const userRole = (req as any).user?.role;
 
     if (!userId) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized: user not found on request',
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid leave ID',
       });
     }
 
@@ -250,7 +270,7 @@ export const getLeaveById = async (req: Request, res: Response) => {
     if (
       userRole !== 'ADMIN' &&
       userRole !== 'MANAGER' &&
-      (leave.userId as any)._id.toString() !== String(userId)
+      leave.userId.toString() !== userId
     ) {
       return res.status(403).json({
         success: false,
@@ -276,10 +296,9 @@ export const updateLeave = async (req: Request, res: Response) => {
   session.startTransaction();
   try {
     const { id } = req.params;
-    const userId =
-      (req as any).user?._id ||
-      (req as any).user?.id ||
-      (req as any).userId;
+    const userId = validateObjectId(
+      (req as any).user?._id || (req as any).user?.id || (req as any).userId
+    );
 
     const {
       leaveType,
@@ -304,6 +323,15 @@ export const updateLeave = async (req: Request, res: Response) => {
       });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid leave ID',
+      });
+    }
+
     const leave = await Leave.findById(id).session(session);
 
     if (!leave) {
@@ -315,7 +343,7 @@ export const updateLeave = async (req: Request, res: Response) => {
       });
     }
 
-    if (leave.userId.toString() !== String(userId)) {
+    if (leave.userId.toString() !== userId) {
       await session.abortTransaction();
       session.endSession();
       return res.status(403).json({
@@ -351,7 +379,7 @@ export const updateLeave = async (req: Request, res: Response) => {
         });
       }
 
-      leave.leaveTypeId = leaveTypeDoc._id as any;
+      leave.leaveTypeId = leaveTypeDoc._id;
     }
 
     if (startDate) leave.startDate = startDate;
@@ -371,11 +399,7 @@ export const updateLeave = async (req: Request, res: Response) => {
       });
     }
 
-    const rawDays =
-      Math.ceil(
-        (end.getTime() - start.getTime()) / (1000 * 3600 * 24),
-      ) + 1;
-
+    const rawDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
     const newDuration = leave.halfDay ? 0.5 : rawDays;
     leave.duration = newDuration;
 
@@ -397,7 +421,7 @@ export const updateLeave = async (req: Request, res: Response) => {
 
     if (oldYear === newYear && String(oldLeaveTypeId) === String(newLeaveTypeId)) {
       const balance = await LeaveBalance.findOne({
-        userId,
+        userId: new mongoose.Types.ObjectId(userId),
         leaveTypeId: newLeaveTypeId,
         year: newYear,
       }).session(session);
@@ -424,7 +448,7 @@ export const updateLeave = async (req: Request, res: Response) => {
       await balance.save({ session });
     } else {
       const oldBalance = await LeaveBalance.findOne({
-        userId,
+        userId: new mongoose.Types.ObjectId(userId),
         leaveTypeId: oldLeaveTypeId,
         year: oldYear,
       }).session(session);
@@ -435,7 +459,7 @@ export const updateLeave = async (req: Request, res: Response) => {
       }
 
       const newBalance = await LeaveBalance.findOne({
-        userId,
+        userId: new mongoose.Types.ObjectId(userId),
         leaveTypeId: newLeaveTypeId,
         year: newYear,
       }).session(session);
@@ -486,20 +510,23 @@ export const updateLeave = async (req: Request, res: Response) => {
 export const cancelLeave = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId =
-      (req as any).user?._id ||
-      (req as any).user?.id ||
-      (req as any).userId;
-
+    const userId = validateObjectId(
+      (req as any).user?._id || (req as any).user?.id || (req as any).userId
+    );
     const employeeName =
-      (req as any).user?.name ||
-      (req as any).user?.email ||
-      'Employee';
+      (req as any).user?.name || (req as any).user?.email || 'Employee';
 
     if (!userId) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized: user not found on request',
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid leave ID',
       });
     }
 
@@ -512,7 +539,7 @@ export const cancelLeave = async (req: Request, res: Response) => {
       });
     }
 
-    if (leave.userId.toString() !== String(userId)) {
+    if (leave.userId.toString() !== userId) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to cancel this leave',
@@ -523,7 +550,7 @@ export const cancelLeave = async (req: Request, res: Response) => {
       const year = new Date(leave.startDate).getFullYear();
       await LeaveBalance.findOneAndUpdate(
         {
-          userId: leave.userId,
+          userId: new mongoose.Types.ObjectId(userId),
           leaveTypeId: leave.leaveTypeId,
           year,
         },
@@ -531,29 +558,33 @@ export const cancelLeave = async (req: Request, res: Response) => {
       );
     }
 
-    leave.status = 'rejected';
+    leave.status = 'cancelled' as LeaveStatus;
     await leave.save();
 
+    // ✅ SAFE: Notify approver if exists
     if (leave.approvedBy) {
-      await createNotification({
-        userId: leave.approvedBy.toString(),
-        type: 'system',
-        action: 'deleted',
-        title: 'Leave Cancelled',
-        message: `${employeeName} cancelled their leave application`,
-        entityType: 'leave',
-        entityId: leave._id.toString(),
-        icon: 'x-circle',
-        color: '#ef4444',
-        actionUrl: `/approvals?tab=leaves`,
-      });
+      const approverId = validateObjectId(leave.approvedBy);
+      if (approverId) {
+        await createNotification({
+          userId: approverId,
+          type: 'system',
+          action: 'deleted',
+          title: 'Leave Cancelled',
+          message: `${employeeName} cancelled their leave application`,
+          entityType: 'leave',
+          entityId: leave._id.toString(),
+          icon: 'x-circle',
+          color: '#ef4444',
+          actionUrl: `/approvals?tab=leaves`,
+        });
 
-      emitNotification(leave.approvedBy.toString(), {
-        title: 'Leave Cancelled',
-        body: `${employeeName} cancelled their leave application`,
-        entityType: 'leave',
-        entityId: leave._id.toString(),
-      });
+        emitNotification(approverId, {
+          title: 'Leave Cancelled',
+          body: `${employeeName} cancelled their leave application`,
+          entityType: 'leave',
+          entityId: leave._id.toString(),
+        });
+      }
     }
 
     res.status(200).json({
@@ -572,11 +603,9 @@ export const cancelLeave = async (req: Request, res: Response) => {
 /** 💰 Get Leave Balance (EMPLOYEE) */
 export const getLeaveBalance = async (req: Request, res: Response) => {
   try {
-    const userId =
-      (req as any).user?._id ||
-      (req as any).user?.id ||
-      (req as any).userId;
-
+    const userId = validateObjectId(
+      (req as any).user?._id || (req as any).user?.id || (req as any).userId
+    );
     const year = Number(req.query.year) || new Date().getFullYear();
 
     if (!userId) {
@@ -587,7 +616,7 @@ export const getLeaveBalance = async (req: Request, res: Response) => {
     }
 
     const balances = await LeaveBalance.find({
-      userId,
+      userId: new mongoose.Types.ObjectId(userId),
       year,
     }).populate('leaveTypeId', 'name code color maxDays');
 
@@ -606,12 +635,10 @@ export const getLeaveBalance = async (req: Request, res: Response) => {
 /** 📊 Get Leave History (EMPLOYEE) */
 export const getLeaveHistory = async (req: Request, res: Response) => {
   try {
-    const userId =
-      (req as any).user?._id ||
-      (req as any).user?.id ||
-      (req as any).userId;
-
-    const { page = 1, limit = 10 } = req.query;
+    const userId = validateObjectId(
+      (req as any).user?._id || (req as any).user?.id || (req as any).userId
+    );
+    const { page = '1', limit = '10' } = req.query;
 
     if (!userId) {
       return res.status(401).json({
@@ -622,14 +649,14 @@ export const getLeaveHistory = async (req: Request, res: Response) => {
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    const leaves = await Leave.find({ userId })
+    const leaves = await Leave.find({ userId: new mongoose.Types.ObjectId(userId) })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit))
       .populate('approvedBy', 'name email')
       .populate('leaveTypeId', 'name code color');
 
-    const total = await Leave.countDocuments({ userId });
+    const total = await Leave.countDocuments({ userId: new mongoose.Types.ObjectId(userId) });
 
     res.status(200).json({
       success: true,

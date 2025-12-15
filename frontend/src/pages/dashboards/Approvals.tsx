@@ -89,7 +89,7 @@ const Approvals: React.FC = () => {
     receiptUrl: null,
   });
 
-  // Fetch all pending approvals
+  // Fetch all pending approvals on mount
   useEffect(() => {
     loadAllPending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,7 +100,7 @@ const Approvals: React.FC = () => {
     try {
       const [leavesRes, expensesRes, timesheetsRes] = await Promise.all([
         // pending leaves: backend uses "submitted"
-        fetchAllLeaves({ status: 'submitted' as any}),
+        fetchAllLeaves({ status: 'submitted' as any }),
         // pending expenses: backend uses "submitted"
         fetchAllExpenses({ status: 'submitted' as any }),
         // pending timesheets: backend uses "submitted"
@@ -129,11 +129,10 @@ const Approvals: React.FC = () => {
   };
 
   // Get total pending count
-  const getTotalPending = () => {
-    return leaves.length + expenses.length + timesheets.length;
-  };
+  const getTotalPending = () =>
+    leaves.length + expenses.length + timesheets.length;
 
-  // Handle approval action
+  // Handle approval/rejection click
   const handleAction = (
     action: 'approve' | 'reject',
     itemId: string,
@@ -204,7 +203,7 @@ const Approvals: React.FC = () => {
     });
   };
 
-  // Get current items based on active tab
+  // Items for current tab
   const currentItems = useMemo(() => {
     switch (activeTab) {
       case 'leaves':
@@ -272,8 +271,15 @@ const Approvals: React.FC = () => {
           <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
             {currentItems.map((item: any) => {
               const isProcessing = processingId === item._id;
+
+              // IMPORTANT FIX: use the populated userId (employee who applied),
+              // not the logged-in admin.
               const employeeName =
-                item.employee?.name || item.user?.name || 'Unknown';
+                item.userId?.name ||
+                item.employeeId?.name ||
+                item.employee?.name ||
+                item.user?.name ||
+                'Unknown';
 
               return (
                 <tr
@@ -414,7 +420,7 @@ const Approvals: React.FC = () => {
                     className={`flex items-center gap-2 px-6 py-3 text-sm font-medium rounded-lg transition-colors relative ${
                       isActive
                         ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-700'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text:white dark:hover:bg-slate-700'
                     }`}
                   >
                     <Icon className="w-5 h-5" />

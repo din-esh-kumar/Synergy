@@ -25,6 +25,12 @@ export interface IExpense extends Document {
   // merchant / vendor info
   merchantName?: string;
 
+  // MongoDB Binary Storage (NEW - replaces disk files)
+  receiptData?: Buffer | null;        // Binary file data
+  receiptMimeType?: string | null;    // image/jpeg, application/pdf
+  receiptFilename?: string | null;    // Original filename
+  receiptSize?: number | null;        // File size in bytes
+
   // either keep old receiptUrl for compatibility or use rich receipt object
   receiptUrl?: string;
   receipt?: IReceipt | null;
@@ -87,6 +93,24 @@ const expenseSchema = new Schema<IExpense>(
     merchantName: {
       type: String,
       default: '',
+    },
+
+    // NEW: MongoDB Binary Storage Fields (for memoryStorage multer)
+    receiptData: {
+      type: Buffer,
+      default: null,
+    },
+    receiptMimeType: {
+      type: String,
+      default: null,
+    },
+    receiptFilename: {
+      type: String,
+      default: null,
+    },
+    receiptSize: {
+      type: Number,
+      default: null,
     },
 
     // keep old field for backward compatibility if you already stored URLs as a plain string
