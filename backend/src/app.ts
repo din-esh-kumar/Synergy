@@ -23,12 +23,6 @@ app.use(
   }),
 );
 
-// Static uploads
-app.use(
-  '/uploads',
-  express.static(path.join(__dirname, '..', 'uploads')),
-);
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -52,8 +46,12 @@ import timesheetRoutes from './routes/timesheet.routes';
 import approvalRoutes from './routes/approval.routes';
 import exportRoutes from './routes/export.routes';
 
+// Google OAuth / Calendar integration routes
+import googleAuthRouter from './routes/auth.google.routes';
+
 // Auth
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', googleAuthRouter); // /api/auth/google, /api/auth/google/callback
 
 // Meetings / projects / tasks
 app.use('/api/meetings', meetingsRoutes);

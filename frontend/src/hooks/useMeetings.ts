@@ -1,3 +1,4 @@
+// frontend/src/hooks/useMeetings.ts
 import { useState, useCallback, useEffect } from 'react';
 import {
   Meeting,
@@ -53,7 +54,9 @@ export const useMeetings = (userId?: string): UseMeetingsReturn => {
             if (m.organizer === userId) return true;
             if (m.attendees?.includes(userId)) return true;
             if (m.invitedUsers && m.invitedUsers.length > 0) {
-              return m.invitedUsers.some((inv) => getAttendeeId(inv) === userId);
+              return m.invitedUsers.some(
+                (inv) => getAttendeeId(inv) === userId,
+              );
             }
             return false;
           })
@@ -78,13 +81,16 @@ export const useMeetings = (userId?: string): UseMeetingsReturn => {
     if (filter.status && filter.status !== 'all') {
       if (filter.status === 'scheduled' || filter.status === 'upcoming') {
         filtered = filtered.filter((m) => new Date(m.startTime) > now);
-      } else if (filter.status === 'ongoing') {
+      } else if (filter.status === 'ongoing' || filter.status === 'live') {
         filtered = filtered.filter((m) => {
           const start = new Date(m.startTime);
           const end = new Date(m.endTime);
           return start <= now && end >= now;
         });
-      } else if (filter.status === 'completed') {
+      } else if (
+        filter.status === 'completed' ||
+        filter.status === 'ended'
+      ) {
         filtered = filtered.filter((m) => new Date(m.endTime) < now);
       }
     }
@@ -134,10 +140,7 @@ export const useMeetings = (userId?: string): UseMeetingsReturn => {
   );
 
   const updateMeeting = useCallback(
-    async (
-      id: string,
-      data: UpdateMeetingPayload,
-    ): Promise<boolean> => {
+    async (id: string, data: UpdateMeetingPayload): Promise<boolean> => {
       try {
         const updated = await meetingsService.updateMeeting(id, data);
         if (updated) {
@@ -221,12 +224,12 @@ export const useMeetings = (userId?: string): UseMeetingsReturn => {
   );
 
   const inviteUsers = useCallback(
-    async (
-      meetingId: string,
-      userIds: string[],
-    ): Promise<boolean> => {
+    async (meetingId: string, userIds: string[]): Promise<boolean> => {
       try {
-        const invited = await meetingsService.inviteUsers(meetingId, userIds);
+        const invited = await meetingsService.inviteUsers(
+          meetingId,
+          userIds,
+        );
         if (invited) {
           showToast.success(`Invited ${userIds.length} user(s)! 📧`);
           await fetchMeetings();

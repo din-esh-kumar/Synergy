@@ -2,7 +2,7 @@ export interface User {
   _id: string;
   name: string;
   email: string;
-  role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+  role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE' | 'INTERN';
   avatar?: string;
   avatarUrl?: string;
 }
@@ -20,14 +20,18 @@ export interface Meeting {
   title: string;
   description?: string;
   location?: string;
-  startTime: string; // Always string (ISO format from API)
-  endTime: string; // Always string (ISO format from API)
+  startTime: string; // ISO string from API
+  endTime: string;   // ISO string from API
   attendees?: string[]; // User IDs
-  invitedUsers?: (Attendee | string)[]; // Can be Attendee objects or IDs
+  invitedUsers?: (Attendee | string)[];
   organizer?: string;
   organiserName?: string;
-  status?: 'upcoming' | 'ongoing' | 'completed' | 'scheduled';
+  // frontend status used for filters / UI
+  status?: 'upcoming' | 'ongoing' | 'completed' | 'scheduled' | 'live' | 'ended';
+  // backend mode: how meeting was created
+  mode?: 'scheduled' | 'instant' | 'link-only';
   joinLink?: string;
+  googleEventId?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -38,12 +42,13 @@ export type CreateMeetingPayload = Omit<
   '_id' | 'createdAt' | 'updatedAt' | 'status'
 >;
 
-
-export type UpdateMeetingPayload = Partial<Omit<Meeting, '_id' | 'createdAt' | 'updatedAt'>>;
+export type UpdateMeetingPayload = Partial<
+  Omit<Meeting, '_id' | 'createdAt' | 'updatedAt'>
+>;
 
 // Filter types
 export interface MeetingFilters {
-  status?: 'upcoming' | 'ongoing' | 'completed' | 'scheduled' | 'all';
+  status?: 'upcoming' | 'ongoing' | 'completed' | 'scheduled' | 'live' | 'ended' | 'all';
   search?: string;
   organizer?: string;
   attendee?: string;
@@ -67,4 +72,3 @@ export interface DashboardData {
   stats: DashboardStats;
   recentTasks?: any[];
 }
-

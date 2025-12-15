@@ -1,5 +1,13 @@
+// frontend/src/pages/meetings/MeetingsHome.tsx
 import React, { useEffect, useState, useCallback } from 'react';
-import { Calendar as CalendarIcon, Plus, Search } from 'lucide-react';
+import {
+  Calendar as CalendarIcon,
+  Plus,
+  Search,
+  Zap,
+  Link as LinkIcon,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import meetingsService from '../../services/meetings.service';
 import {
   Meeting,
@@ -12,10 +20,18 @@ import MeetingForm from './MeetingForm';
 import MeetingList from './MeetingList';
 import MeetingCalendar from './MeetingCalendar';
 
-type FilterStatus = 'all' | 'scheduled' | 'ongoing' | 'completed';
+type FilterStatus =
+  | 'all'
+  | 'scheduled'
+  | 'ongoing'
+  | 'completed'
+  | 'live'
+  | 'ended';
 
 const MeetingsHome: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [filteredMeetings, setFilteredMeetings] = useState<Meeting[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -24,11 +40,12 @@ const MeetingsHome: React.FC = () => {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [newMenuOpen, setNewMenuOpen] = useState(false);
 
   const safeDate = (value: string | Date | undefined): Date | null => {
     if (!value) return null;
     const d = new Date(value);
-    return isNaN(d.getTime()) ? null : d;
+    return Number.isNaN(d.getTime()) ? null : d;
   };
 
   const fetchMeetings = useCallback(async () => {
@@ -49,13 +66,13 @@ const MeetingsHome: React.FC = () => {
 
           const inAttendees = Array.isArray(m.attendees)
             ? (m.attendees as (string | { _id: string })[]).some((a) =>
-                typeof a === 'string' ? a === uid : a._id === uid
+                typeof a === 'string' ? a === uid : a._id === uid,
               )
             : false;
 
           const inInvited = Array.isArray(m.invitedUsers)
             ? (m.invitedUsers as (string | { _id: string })[]).some((inv) =>
-                typeof inv === 'string' ? inv === uid : inv._id === uid
+                typeof inv === 'string' ? inv === uid : inv._id === uid,
               )
             : false;
 
@@ -82,22 +99,24 @@ const MeetingsHome: React.FC = () => {
     let filtered = [...meetings];
     const now = new Date();
 
-    if (filter === 'scheduled') {
-      filtered = filtered.filter((m) => {
-        const start = safeDate(m.startTime);
-        return !!start && start > now;
-      });
-    } else if (filter === 'ongoing') {
-      filtered = filtered.filter((m) => {
-        const start = safeDate(m.startTime);
-        const end = safeDate(m.endTime);
-        return !!start && !!end && start <= now && end >= now;
-      });
-    } else if (filter === 'completed') {
-      filtered = filtered.filter((m) => {
-        const end = safeDate(m.endTime);
-        return !!end && end < now;
-      });
+    if (filter !== 'all') {
+      if (filter === 'scheduled') {
+        filtered = filtered.filter((m) => {
+          const start = safeDate(m.startTime);
+          return !!start && start > now;
+        });
+      } else if (filter === 'ongoing' || filter === 'live') {
+        filtered = filtered.filter((m) => {
+          const start = safeDate(m.startTime);
+          const end = safeDate(m.endTime);
+          return !!start && !!end && start <= now && end >= now;
+        });
+      } else if (filter === 'completed' || filter === 'ended') {
+        filtered = filtered.filter((m) => {
+          const end = safeDate(m.endTime);
+          return !!end && end < now;
+        });
+      }
     }
 
     if (search) {
@@ -106,7 +125,7 @@ const MeetingsHome: React.FC = () => {
         (m) =>
           m.title?.toLowerCase().includes(term) ||
           m.description?.toLowerCase().includes(term) ||
-          m.location?.toLowerCase().includes(term)
+          m.location?.toLowerCase().includes(term),
       );
     }
 
@@ -128,9 +147,12 @@ const MeetingsHome: React.FC = () => {
         await fetchMeetings();
       }
     } catch (error: any) {
-      console.error('Error creating meeting:', error?.response?.data || error);
+      console.error(
+        'Error creating meeting:',
+        error?.response?.data || error,
+      );
       showToast.error(
-        error?.response?.data?.message || 'Failed to create meeting'
+        error?.response?.data?.message || 'Failed to create meeting',
       );
     }
   };
@@ -147,7 +169,7 @@ const MeetingsHome: React.FC = () => {
       };
       const updated = await meetingsService.updateMeeting(
         editingMeeting._id,
-        updatePayload
+        updatePayload,
       );
       if (updated) {
         showToast.success('Meeting updated successfully! ✏️');
@@ -156,9 +178,12 @@ const MeetingsHome: React.FC = () => {
         await fetchMeetings();
       }
     } catch (error: any) {
-      console.error('Error updating meeting:', error?.response?.data || error);
+      console.error(
+        'Error updating meeting:',
+        error?.response?.data || error,
+      );
       showToast.error(
-        error?.response?.data?.message || 'Failed to update meeting'
+        error?.response?.data?.message || 'Failed to update meeting',
       );
     }
   };
@@ -177,10 +202,29 @@ const MeetingsHome: React.FC = () => {
     }
   };
 
+  const openJoinLink = (joinLink: string, mode?: string) => {
+    // For instant or link-only meetings, always go to internal WebRTC room
+    if (mode === 'instant' || mode === 'link-only') {
+      const path = joinLink.startsWith(window.location.origin)
+        ? joinLink.replace(window.location.origin, '')
+        : joinLink;
+      navigate(path);
+      return;
+    }
+
+    // For scheduled meetings, support both internal and external links
+    if (joinLink.startsWith(window.location.origin)) {
+      const path = joinLink.replace(window.location.origin, '');
+      navigate(path);
+    } else {
+      window.open(joinLink, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   const handleJoinMeeting = async (id: string) => {
     const meeting = meetings.find((m) => m._id === id);
     if (meeting?.joinLink) {
-      window.open(meeting.joinLink, '_blank', 'noopener,noreferrer');
+      openJoinLink(meeting.joinLink, meeting.mode);
     }
 
     try {
@@ -191,6 +235,19 @@ const MeetingsHome: React.FC = () => {
       showToast.error('Failed to join meeting');
     }
   };
+
+  const handleCalendarSelect = (meeting: Meeting) => {
+    if (meeting._id && meeting.joinLink) {
+      handleJoinMeeting(meeting._id);
+    }
+  };
+
+  const filterButtons: FilterStatus[] = [
+    'all',
+    'scheduled',
+    'ongoing',
+    'completed',
+  ];
 
   return (
     <div className="flex-1 px-6 py-6">
@@ -230,18 +287,103 @@ const MeetingsHome: React.FC = () => {
           </button>
         </div>
 
-        {/* New Meeting Button */}
+        {/* New Meeting menu */}
         {user?.role !== 'EMPLOYEE' && !showForm && (
-          <button
-            onClick={() => {
-              setEditingMeeting(null);
-              setShowForm(true);
-            }}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold transition-all"
-          >
-            <Plus className="w-5 h-5" />
-            New Meeting
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setNewMenuOpen((v) => !v)}
+              className="flex items-center justify-center gap-2 px-6 py-3
+                         bg-gradient-to-r from-blue-600 to-blue-700
+                         hover:from-blue-700 hover:to-blue-800
+                         text-white rounded-lg font-semibold transition-all"
+            >
+              <Plus className="w-5 h-5" />
+              New Meeting
+            </button>
+
+            {newMenuOpen && (
+              <div className="absolute right-0 mt-2 w-72 rounded-lg border
+                              border-slate-200 dark:border-slate-700
+                              bg-white dark:bg-slate-800 shadow-lg overflow-hidden z-20">
+                {/* Start instant meeting */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setNewMenuOpen(false);
+                    try {
+                      const meeting =
+                        await meetingsService.createInstantMeeting();
+                      showToast.success('Instant meeting started');
+                      if (meeting.joinLink) {
+                        openJoinLink(meeting.joinLink, meeting.mode);
+                      }
+                      await fetchMeetings();
+                    } catch (e) {
+                      console.error(e);
+                      showToast.error('Failed to start instant meeting');
+                    }
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm
+                             hover:bg-slate-100 dark:hover:bg-slate-700"
+                >
+                  <Zap className="w-4 h-4 text-emerald-500" />
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Start an instant meeting</span>
+                    <span className="text-xs text-slate-500">
+                      Create a room and join now
+                    </span>
+                  </div>
+                </button>
+
+                {/* Create link for later */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setNewMenuOpen(false);
+                    try {
+                      await meetingsService.createLinkOnlyMeeting();
+                      showToast.success('Meeting link created');
+                      await fetchMeetings();
+                    } catch (e) {
+                      console.error(e);
+                      showToast.error('Failed to create meeting link');
+                    }
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm
+                             hover:bg-slate-100 dark:hover:bg-slate-700"
+                >
+                  <LinkIcon className="w-4 h-4 text-indigo-500" />
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Create a meeting for later</span>
+                    <span className="text-xs text-slate-500">
+                      Generate a link to share
+                    </span>
+                  </div>
+                </button>
+
+                {/* Schedule in calendar */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewMenuOpen(false);
+                    setEditingMeeting(null);
+                    setShowForm(true);
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm
+                             hover:bg-slate-100 dark:hover:bg-slate-700 border-t
+                             border-slate-200 dark:border-slate-700"
+                >
+                  <CalendarIcon className="w-4 h-4 text-blue-500" />
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Schedule in calendar</span>
+                    <span className="text-xs text-slate-500">
+                      Choose date, time and guests
+                    </span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -261,7 +403,7 @@ const MeetingsHome: React.FC = () => {
 
         {/* Status Filter Buttons */}
         <div className="flex flex-wrap gap-2">
-          {(['all', 'scheduled', 'ongoing', 'completed'] as const).map((f) => (
+          {filterButtons.map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -307,7 +449,9 @@ const MeetingsHome: React.FC = () => {
                   key={meeting._id}
                   meeting={meeting}
                   currentUserId={user?._id}
-                  currentUserRole={user?.role as 'ADMIN' | 'MANAGER' | 'EMPLOYEE'}
+                  currentUserRole={
+                    user?.role as 'ADMIN' | 'MANAGER' | 'EMPLOYEE' | 'INTERN'
+                  }
                   onEdit={() => {
                     setEditingMeeting(meeting);
                     setShowForm(true);
@@ -322,7 +466,10 @@ const MeetingsHome: React.FC = () => {
               ))}
             </div>
           ) : (
-            <MeetingCalendar meetings={filteredMeetings} />
+            <MeetingCalendar
+              meetings={filteredMeetings}
+              onSelectMeeting={handleCalendarSelect}
+            />
           )
         ) : (
           <div className="text-center py-12">

@@ -1,8 +1,12 @@
+// frontend/src/services/meetings.service.ts
 import api from './api';
-import { Meeting, MeetingFilters, CreateMeetingPayload } from '../types/meetings.types';
+import {
+  Meeting,
+  MeetingFilters,
+  CreateMeetingPayload,
+} from '../types/meetings.types';
 
 export const meetingsService = {
-
   // ---------------- GET ALL MEETINGS (WITH FILTERS) ----------------
   getMeetings: async (filters: MeetingFilters = {}): Promise<Meeting[]> => {
     try {
@@ -28,10 +32,16 @@ export const meetingsService = {
     }
   },
 
-  // ---------------- CREATE MEETING ----------------
-  createMeeting: async (data: CreateMeetingPayload): Promise<Meeting | null> => {
+  // ---------------- CREATE MEETING (SCHEDULED) ----------------
+  createMeeting: async (
+    data: CreateMeetingPayload,
+  ): Promise<Meeting | null> => {
     try {
-      const response = await api.post('/meetings', data);
+      // Always ask backend to sync to Google (you can make this configurable later)
+      const response = await api.post('/meetings', {
+        ...data,
+        syncToGoogle: true,
+      });
       return response.data?.meeting || null;
     } catch (error) {
       console.error('Error creating meeting:', error);
@@ -40,7 +50,10 @@ export const meetingsService = {
   },
 
   // ---------------- UPDATE MEETING ----------------
-  updateMeeting: async (id: string, data: Partial<CreateMeetingPayload>): Promise<Meeting | null> => {
+  updateMeeting: async (
+    id: string,
+    data: Partial<CreateMeetingPayload>,
+  ): Promise<Meeting | null> => {
     try {
       const response = await api.put(`/meetings/${id}`, data);
       return response.data?.meeting || null;
@@ -84,9 +97,14 @@ export const meetingsService = {
   },
 
   // ---------------- INVITE USERS ----------------
-  inviteUsers: async (meetingId: string, userIds: string[]): Promise<boolean> => {
+  inviteUsers: async (
+    meetingId: string,
+    userIds: string[],
+  ): Promise<boolean> => {
     try {
-      const response = await api.post(`/meetings/${meetingId}/invite`, { userIds });
+      const response = await api.post(`/meetings/${meetingId}/invite`, {
+        userIds,
+      });
       return response.status === 200;
     } catch (error) {
       console.error('Error inviting users:', error);
@@ -116,15 +134,38 @@ export const meetingsService = {
     }
   },
 
-  // ---------------- MONTHLY MEETINGS (ADDED) ----------------
-  getMonthlyMeetings: async (year: number, month: number): Promise<Meeting[]> => {
+  // ---------------- MONTHLY MEETINGS ----------------
+  getMonthlyMeetings: async (
+    year: number,
+    month: number,
+  ): Promise<Meeting[]> => {
     try {
-      const response = await api.get(`/meetings/monthly?year=${year}&month=${month}`);
+      const response = await api.get(
+        `/meetings/monthly?year=${year}&month=${month}`,
+      );
       return response.data?.meetings || [];
     } catch (error) {
       console.error('Error fetching monthly meetings:', error);
       return [];
     }
+  },
+
+  // ---------------- INSTANT MEETING ----------------
+  createInstantMeeting: async (): Promise<Meeting> => {
+    // Ask backend to create Google event + Meet link
+    const response = await api.post('/meetings/instant', {
+      syncToGoogle: true,
+    });
+    return response.data?.meeting as Meeting;
+  },
+
+  // ---------------- LINK-ONLY MEETING ----------------
+  createLinkOnlyMeeting: async (): Promise<Meeting> => {
+    // Ask backend to create Google event + Meet link
+    const response = await api.post('/meetings/link', {
+      syncToGoogle: true,
+    });
+    return response.data?.meeting as Meeting;
   },
 };
 

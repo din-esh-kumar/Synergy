@@ -1,3 +1,4 @@
+// frontend/src/components/Meetings/MeetingList.tsx
 import React from 'react';
 import { Meeting } from '../../types/meetings.types';
 import {
@@ -9,12 +10,14 @@ import {
   MapPin,
   Users,
   Video,
+  Zap,
+  Link as LinkIcon,
 } from 'lucide-react';
 
 interface Props {
   meeting: Meeting;
   currentUserId?: string;
-  currentUserRole?: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+  currentUserRole?: 'ADMIN' | 'MANAGER' | 'EMPLOYEE' | 'INTERN';
   onEdit: () => void;
   onDelete: () => void;
   onJoin: () => void;
@@ -34,10 +37,20 @@ const statusStyles: Record<string, { badge: string; label: string }> = {
       'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300',
     label: 'Ongoing',
   },
+  live: {
+    badge:
+      'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
+    label: 'Live',
+  },
   completed: {
     badge:
       'bg-slate-100 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300',
     label: 'Completed',
+  },
+  ended: {
+    badge:
+      'bg-slate-100 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300',
+    label: 'Ended',
   },
 };
 
@@ -65,18 +78,36 @@ const MeetingList: React.FC<Props> = ({
   const end = meeting.endTime ? new Date(meeting.endTime) : null;
   const now = new Date();
 
-  const canJoin =
-    !!meeting.joinLink &&
-    !!start &&
-    (!!end ? start <= now && now <= end : start <= now);
+  const isLiveWindow =
+    !!start && (!!end ? start <= now && now <= end : start <= now);
 
-  const canManage =
-  currentUserRole === 'ADMIN' || isOrganizer;
+  // joinable if:
+  // - internal/instant/live window OR explicit joinLink exists
+  const canJoinTime =
+    meeting.mode === 'instant' ||
+    meeting.status === 'live' ||
+    meeting.status === 'ongoing' ||
+    isLiveWindow;
 
+  const hasLink = !!meeting.joinLink;
+
+  // show button whenever time is OK even if link is not yet generated,
+  // so user still sees "Join" (it will open details or internal room)
+  const showJoinButton = hasLink || canJoinTime;
+  const joinEnabled = hasLink && canJoinTime;
+
+  const canManage = currentUserRole === 'ADMIN' || isOrganizer;
+
+  const modeLabel =
+    meeting.mode === 'instant'
+      ? 'Instant'
+      : meeting.mode === 'link-only'
+      ? 'Link only'
+      : 'Scheduled';
 
   return (
     <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4 hover:shadow-lg transition-all">
-      {/* Header row: title + status badge + organizer badge */}
+      {/* Header row */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -94,6 +125,13 @@ const MeetingList: React.FC<Props> = ({
           >
             {status.label}
           </span>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-900/50 text-slate-700 dark:text-slate-300">
+            {meeting.mode === 'instant' && <Zap className="w-3 h-3 mr-1" />}
+            {meeting.mode === 'link-only' && (
+              <LinkIcon className="w-3 h-3 mr-1" />
+            )}
+            {modeLabel}
+          </span>
           {isOrganizer && (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
               Organizer
@@ -102,7 +140,7 @@ const MeetingList: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Meta information row */}
+      {/* Meta row */}
       <div className="flex flex-wrap items-center gap-4 mb-4 text-sm text-gray-600 dark:text-gray-400">
         {start && (
           <div className="flex items-center gap-1.5">
@@ -154,24 +192,22 @@ const MeetingList: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Action buttons row */}
+      {/* Actions row */}
       <div className="flex items-center gap-2">
-        {/* Join button */}
-        {meeting.joinLink && (
+        {showJoinButton && (
           <button
-            onClick={onJoin}
+            onClick={joinEnabled ? onJoin : undefined}
             className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-              canJoin
+              joinEnabled
                 ? 'bg-green-600 hover:bg-green-700 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
             }`}
           >
             <Video className="w-4 h-4" />
-            {canJoin ? 'Join' : 'Not started'}
+            {joinEnabled ? 'Join' : 'Not started'}
           </button>
         )}
 
-        {/* Edit & Delete icons (compact) */}
         {canManage && (
           <div className="flex items-center gap-1.5 ml-auto">
             <button

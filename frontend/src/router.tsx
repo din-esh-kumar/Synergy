@@ -36,7 +36,7 @@ export const router = createBrowserRouter([
     children: [
       // Dashboard
       { path: '/dashboard', element: <Dashboard /> },
-      
+
       // Synergy Project Management
       { path: '/teams', element: <TeamsHome /> },
       { path: '/projects', element: <ProjectsHome /> },
@@ -44,21 +44,25 @@ export const router = createBrowserRouter([
       { path: '/issues', element: <IssueHome /> },
       { path: '/meetings', element: <MeetingsHome /> },
       { path: '/meetings/:id', element: <MeetingDetails /> },
+
+      // WebRTC meeting room (used by joinLink like /meet/:id)
+      { path: '/meet/:id', element: <MeetingDetails /> },
+
       { path: '/messages', element: <MessagesPage /> },
-      
+
       // EMS (Employee Management System)
       { path: '/leaves', element: <LeaveList /> },
       { path: '/expenses', element: <ExpenseList /> },
       { path: '/timesheets', element: <TimesheetList /> },
       { path: '/approvals', element: <Approvals /> },
-      
+
       // Admin
       { path: '/admin', element: <AdminPanel /> },
-      
+
       // General
       { path: '/notifications', element: <NotificationsPage /> },
       { path: '/settings', element: <SettingsPage /> },
-      
+
       // Default redirect to dashboard
       { path: '/', element: <Navigate to="/dashboard" replace /> },
     ],

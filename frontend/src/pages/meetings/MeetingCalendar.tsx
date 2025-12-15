@@ -1,11 +1,13 @@
+// frontend/src/components/Meetings/MeetingCalendar.tsx
 import React, { useState } from 'react';
 import { Meeting } from '../../types/meetings.types';
 
 interface Props {
   meetings: Meeting[];
+  onSelectMeeting?: (meeting: Meeting) => void;
 }
 
-const MeetingCalendar: React.FC<Props> = ({ meetings }) => {
+const MeetingCalendar: React.FC<Props> = ({ meetings, onSelectMeeting }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
@@ -34,14 +36,14 @@ const MeetingCalendar: React.FC<Props> = ({ meetings }) => {
 
   const nextMonth = () => {
     setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
+      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
     );
     setSelectedDate(null);
   };
 
   const prevMonth = () => {
     setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
+      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1),
     );
     setSelectedDate(null);
   };
@@ -71,6 +73,27 @@ const MeetingCalendar: React.FC<Props> = ({ meetings }) => {
   const today = new Date();
   const selectedMeetings = selectedDate ? getMeetingsForDate(selectedDate) : [];
 
+  const getBadgeClasses = (meeting: Meeting) => {
+    if (meeting.status === 'live' || meeting.status === 'ongoing') {
+      return 'bg-red-500/20 text-red-700 dark:bg-red-500/20 dark:text-red-200';
+    }
+    if (meeting.status === 'ended' || meeting.status === 'completed') {
+      return 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200';
+    }
+    if (meeting.mode === 'instant') {
+      return 'bg-emerald-500/20 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200';
+    }
+    return 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-100';
+  };
+
+  const handleDayClick = (date: Date) => {
+    setSelectedDate(date);
+  };
+
+  const handleMeetingClick = (meeting: Meeting) => {
+    if (onSelectMeeting) onSelectMeeting(meeting);
+  };
+
   return (
     <div className="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-2xl p-5 md:p-6 shadow-sm">
       {/* Header */}
@@ -83,31 +106,32 @@ const MeetingCalendar: React.FC<Props> = ({ meetings }) => {
           <button
             onClick={prevMonth}
             className="inline-flex items-center justify-center px-3 py-2 rounded-lg
-                       bg-slate-100 text-slate-700 hover:bg-slate-200
-                       dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700
-                       border border-slate-200 dark:border-slate-600
-                       text-sm font-medium transition-colors"
+                     bg-slate-100 text-slate-700 hover:bg-slate-200
+                     dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700
+                     border border-slate-200 dark:border-slate-600
+                     text-sm font-medium transition-colors"
           >
             ←
           </button>
           <button
             onClick={() => {
-              setCurrentDate(new Date());
-              setSelectedDate(new Date());
+              const now = new Date();
+              setCurrentDate(now);
+              setSelectedDate(now);
             }}
             className="hidden sm:inline-flex items-center justify-center px-3 py-2 rounded-lg
-                       bg-blue-600 text-white hover:bg-blue-700
-                       text-sm font-medium transition-colors"
+                     bg-blue-600 text-white hover:bg-blue-700
+                     text-sm font-medium transition-colors"
           >
             Today
           </button>
           <button
             onClick={nextMonth}
             className="inline-flex items-center justify-center px-3 py-2 rounded-lg
-                       bg-slate-100 text-slate-700 hover:bg-slate-200
-                       dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700
-                       border border-slate-200 dark:border-slate-600
-                       text-sm font-medium transition-colors"
+                     bg-slate-100 text-slate-700 hover:bg-slate-200
+                     dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700
+                     border border-slate-200 dark:border-slate-600
+                     text-sm font-medium transition-colors"
           >
             →
           </button>
@@ -142,7 +166,7 @@ const MeetingCalendar: React.FC<Props> = ({ meetings }) => {
           const date = new Date(
             currentDate.getFullYear(),
             currentDate.getMonth(),
-            day
+            day,
           );
           const dayMeetings = getMeetingsForDate(date);
           const isTodayFlag = isSameDay(date, today);
@@ -152,7 +176,7 @@ const MeetingCalendar: React.FC<Props> = ({ meetings }) => {
             <button
               type="button"
               key={day}
-              onClick={() => setSelectedDate(date)}
+              onClick={() => handleDayClick(date)}
               className={`
                 h-24 w-full text-left rounded-xl border p-2 flex flex-col
                 transition-colors overflow-hidden group
@@ -184,7 +208,13 @@ const MeetingCalendar: React.FC<Props> = ({ meetings }) => {
                 {dayMeetings.slice(0, 2).map((meeting) => (
                   <div
                     key={meeting._id}
-                    className="text-[10px] md:text-xs bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-100 px-2 py-1 rounded-md truncate"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMeetingClick(meeting);
+                    }}
+                    className={`cursor-pointer text-[10px] md:text-xs px-2 py-1 rounded-md truncate ${getBadgeClasses(
+                      meeting,
+                    )}`}
                     title={meeting.title}
                   >
                     {new Date(meeting.startTime).toLocaleTimeString('en-US', {
@@ -237,12 +267,14 @@ const MeetingCalendar: React.FC<Props> = ({ meetings }) => {
                 .sort(
                   (a, b) =>
                     new Date(a.startTime).getTime() -
-                    new Date(b.startTime).getTime()
+                    new Date(b.startTime).getTime(),
                 )
                 .map((meeting) => (
-                  <div
+                  <button
                     key={meeting._id}
-                    className="flex items-center justify-between rounded-lg px-3 py-2 bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs md:text-sm"
+                    type="button"
+                    onClick={() => handleMeetingClick(meeting)}
+                    className="w-full flex items-center justify-between rounded-lg px-3 py-2 bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs md:text-sm text-left"
                   >
                     <div className="flex flex-col">
                       <span className="font-medium truncate">
@@ -254,13 +286,16 @@ const MeetingCalendar: React.FC<Props> = ({ meetings }) => {
                           {
                             hour: '2-digit',
                             minute: '2-digit',
-                          }
+                          },
                         )}{' '}
                         -{' '}
-                        {new Date(meeting.endTime).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {new Date(meeting.endTime).toLocaleTimeString(
+                          'en-US',
+                          {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          },
+                        )}
                       </span>
                     </div>
                     {meeting.location && (
@@ -268,7 +303,7 @@ const MeetingCalendar: React.FC<Props> = ({ meetings }) => {
                         {meeting.location}
                       </span>
                     )}
-                  </div>
+                  </button>
                 ))}
             </div>
           )}
