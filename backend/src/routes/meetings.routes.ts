@@ -16,7 +16,7 @@ import { authenticateJWT } from '../middleware/auth.middleware';
 
 const router = express.Router();
 
-// All routes require authentication
+// All meeting routes require authentication
 router.use(authenticateJWT);
 
 // Scheduled / normal meeting CRUD
@@ -28,11 +28,10 @@ router.get('/:id', getMeetingById);
 router.put('/:id', updateMeeting);
 router.delete('/:id', deleteMeeting);
 
-// Google‑Meet style extras (wire up once controller functions exist)
-router.post('/instant', createInstantMeeting);      // Start an instant meeting
-router.post('/link', createLinkOnlyMeeting);        // Create meeting link for later
-router.post('/:id/join', joinMeeting);              // Mark user joined, emit socket
-router.post('/:id/leave', leaveMeeting);            // Mark user left, emit socket
-
+// Google‑Meet style extras
+router.post('/instant', createInstantMeeting);   // Start an instant meeting
+router.post('/link', createLinkOnlyMeeting);     // Create meeting link for later
+router.post('/:id/join', joinMeeting);           // Mark user joined, emit socket
+router.post('/:id/leave', leaveMeeting);         // Mark user left, emit socket
 
 export default router;

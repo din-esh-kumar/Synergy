@@ -47,7 +47,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuToggle }) => {
                 <span className="text-white font-bold text-xl">W</span>
               </div>
               <span className="text-xl font-bold text-slate-900 dark:text-white hidden sm:block">
-                WorkHub
+                Synergy
               </span>
             </Link>
           </div>

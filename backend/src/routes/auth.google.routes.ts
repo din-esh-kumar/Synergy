@@ -30,22 +30,33 @@ router.get('/google', (req: Request, res: Response) => {
   res.redirect(url);
 });
 
-// STEP 2: callback – NO auth, NO redirect to frontend
+// STEP 2: callback – save tokens for organizer user
 router.get('/google/callback', async (req: Request, res: Response) => {
   try {
     const code = req.query.code as string | undefined;
+
     if (!code) {
       return res.status(400).send('Missing code');
     }
 
-    // Use your own MongoDB _id for the organizer user
-    const userId = '6926dd43e5a9dd5086e813d2';
+    // Organizer user: karthikjakkuva4@gmail.com
+    const userId = '69267ea6ca4a14a1f548ce2c';
 
     const oAuth2Client = createOAuthClient();
     const { tokens } = await oAuth2Client.getToken(code);
     oAuth2Client.setCredentials(tokens);
 
-    await User.findByIdAndUpdate(userId, { googleTokens: tokens });
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { googleTokens: tokens },
+      { new: true },
+    );
+
+    console.log('Google token update result:', updatedUser?._id);
+
+    if (!updatedUser) {
+      return res.status(404).send('User not found for given userId');
+    }
 
     return res.send('Google tokens saved successfully. You can close this tab.');
   } catch (err) {

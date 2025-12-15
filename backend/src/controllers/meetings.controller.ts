@@ -124,6 +124,9 @@ export const createMeeting = async (req: Request, res: Response) => {
           attendees: attendeesForGoogle.map((u: any) => u.email),
         });
 
+        console.log('googleEvent for scheduled meeting', googleEvent);
+        console.log('organizerId used for calendar (scheduled)', organizerId);
+
         if (googleEvent.meetLink) {
           meeting.joinLink = googleEvent.meetLink; // Google Meet URL
         } else if (!meeting.joinLink) {
@@ -256,6 +259,9 @@ export const createInstantMeeting = async (req: Request, res: Response) => {
           attendees: attendeesForGoogle.map((u: any) => u.email),
         });
 
+        console.log('googleEvent for instant meeting', googleEvent);
+        console.log('organizerId used for calendar (instant)', organizerId);
+
         if (googleEvent.meetLink) {
           meeting.joinLink = googleEvent.meetLink;
         } else {
@@ -350,6 +356,9 @@ export const createLinkOnlyMeeting = async (req: Request, res: Response) => {
           attendees: [],
         });
 
+        console.log('googleEvent for link-only meeting', googleEvent);
+        console.log('organizerId used for calendar (link-only)', organizerId);
+
         if (googleEvent.meetLink) {
           meeting.joinLink = googleEvent.meetLink;
         } else {
@@ -414,7 +423,7 @@ export const joinMeeting = async (req: Request, res: Response) => {
       meeting.organizer.toString() !== userId
     ) {
       // auto-add as attendee when joining by link
-      meeting.attendees.push(userId as any);
+      (meeting.attendees as any).push(userId as any);
     }
 
     if (meeting.status === 'scheduled') {

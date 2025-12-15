@@ -1,5 +1,13 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
+export interface IGoogleTokens {
+  access_token?: string;
+  refresh_token?: string;
+  scope?: string;
+  token_type?: string;
+  expiry_date?: number;
+}
+
 export interface IUser extends Document {
   _id: Types.ObjectId;
   name: string;
@@ -10,7 +18,8 @@ export interface IUser extends Document {
   designation?: string;
   status: boolean;
   avatar?: string;
-  managerId?: Types.ObjectId; //
+  managerId?: Types.ObjectId;
+  googleTokens?: IGoogleTokens;   // ← add this
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,7 +44,7 @@ const userSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ['ADMIN', 'MANAGER', 'EMPLOYEE', 'INTERN'], // ✅ Added INTERN
+      enum: ['ADMIN', 'MANAGER', 'EMPLOYEE', 'INTERN'],
       default: 'EMPLOYEE',
     },
     phone: {
@@ -54,13 +63,20 @@ const userSchema = new Schema(
       type: String,
       default: '',
     },
-    managerId: { // ✅ Added manager relationship
+    managerId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       default: null,
     },
+    googleTokens: {
+      access_token: String,
+      refresh_token: String,
+      scope: String,
+      token_type: String,
+      expiry_date: Number,
+    }, // ← new field
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.model<IUser>('User', userSchema);

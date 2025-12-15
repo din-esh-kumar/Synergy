@@ -1,7 +1,11 @@
 // frontend/src/services/authGoogle.service.ts
 import api from './api';
+// import type { IUser } from '../types/auth.types'; // if you actually need the type
 
-export const connectGoogleCalendar = () => {
-  // simplest: redirect browser; cookies/JWT go automatically
-  window.location.href = 'http://localhost:5000/api/auth/google';
+// frontend/src/services/authGoogle.service.ts
+export const connectGoogleCalendar = (currentUserId: string) => {
+  const backendBase =
+    import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+  window.location.href = `${backendBase}/auth/google?userId=${currentUserId}`;
 };
+
