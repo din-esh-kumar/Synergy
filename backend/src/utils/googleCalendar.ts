@@ -7,6 +7,9 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID as string;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET as string;
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI as string;
 
+// TEMP: single Google owner user (has tokens already)
+const GOOGLE_OWNER_ID = '69267ea6ca4a14a1f548ce2c';
+
 const createOAuthClient = () => {
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REDIRECT_URI) {
     throw new Error('Google OAuth env vars are missing');
@@ -18,12 +21,23 @@ const createOAuthClient = () => {
   );
 };
 
-const getUserCalendarClient = async (userId: string) => {
-  const user = await User.findById(userId).lean();
+// Always use the owner user for Calendar (ignores organizerId for now)
+const getUserCalendarClient = async (_userId: string) => {
+  const user = await User.findById(GOOGLE_OWNER_ID).lean();
+
+  console.log('getUserCalendarClient:', {
+    requestedUserId: _userId,
+    ownerId: GOOGLE_OWNER_ID,
+    hasUser: !!user,
+    email: user?.email,
+    hasTokens: !!(user as any)?.googleTokens,
+  });
+
   if (!user || !(user as any).googleTokens) {
-    // not connected to Google
+    // Google owner not connected
     return null;
   }
+
   const oAuth2Client = createOAuthClient();
   oAuth2Client.setCredentials((user as any).googleTokens);
   return google.calendar({ version: 'v3', auth: oAuth2Client });
@@ -55,7 +69,7 @@ export const createGoogleCalendarEvent = async (params: {
 
   const calendar = await getUserCalendarClient(organizerId);
   if (!calendar) {
-    // user not connected; let caller fall back to internal link
+    // owner user not connected; let caller fall back to internal link
     return { eventId: undefined, meetLink: undefined };
   }
 

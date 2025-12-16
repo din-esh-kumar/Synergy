@@ -72,14 +72,14 @@ export const createMeeting = async (req: Request, res: Response) => {
 
     let attendeeIds: string[] = Array.isArray(attendees)
       ? attendees
-          .map((id: any) =>
-            typeof id === 'string'
-              ? id
-              : id?._id?.toString() || id?.id,
-          )
-          .filter(
-            (id: any) => typeof id === 'string' && id.trim().length > 0,
-          )
+        .map((id: any) =>
+          typeof id === 'string'
+            ? id
+            : id?._id?.toString() || id?.id,
+        )
+        .filter(
+          (id: any) => typeof id === 'string' && id.trim().length > 0,
+        )
       : [];
 
     if (attendeeIds.length > 0) {
@@ -206,14 +206,14 @@ export const createInstantMeeting = async (req: Request, res: Response) => {
 
     let attendeeIds: string[] = Array.isArray(attendees)
       ? attendees
-          .map((id: any) =>
-            typeof id === 'string'
-              ? id
-              : id?._id?.toString() || id?.id,
-          )
-          .filter(
-            (id: any) => typeof id === 'string' && id.trim().length > 0,
-          )
+        .map((id: any) =>
+          typeof id === 'string'
+            ? id
+            : id?._id?.toString() || id?.id,
+        )
+        .filter(
+          (id: any) => typeof id === 'string' && id.trim().length > 0,
+        )
       : [];
 
     if (attendeeIds.length > 0) {
@@ -598,11 +598,11 @@ export const getMeetingById = async (req: Request, res: Response) => {
 
     const isAttendee = Array.isArray(meeting.attendees)
       ? meeting.attendees.some((attendee: any) => {
-          const attId = attendee?._id
-            ? attendee._id.toString()
-            : attendee.toString();
-          return attId === userId;
-        })
+        const attId = attendee?._id
+          ? attendee._id.toString()
+          : attendee.toString();
+        return attId === userId;
+      })
       : false;
 
     if (!isOrganizer && !isAttendee) {

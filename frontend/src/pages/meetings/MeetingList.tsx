@@ -23,7 +23,13 @@ interface Props {
   onJoin: () => void;
 }
 
-const statusStyles: Record<string, { badge: string; label: string }> = {
+const statusStyles: Record<
+  string,
+  {
+    badge: string;
+    label: string;
+  }
+> = {
   scheduled: {
     badge: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
     label: 'Scheduled',
@@ -81,8 +87,7 @@ const MeetingList: React.FC<Props> = ({
   const isLiveWindow =
     !!start && (!!end ? start <= now && now <= end : start <= now);
 
-  // joinable if:
-  // - internal/instant/live window OR explicit joinLink exists
+  // joinable based on time window / status
   const canJoinTime =
     meeting.mode === 'instant' ||
     meeting.status === 'live' ||
@@ -91,10 +96,12 @@ const MeetingList: React.FC<Props> = ({
 
   const hasLink = !!meeting.joinLink;
 
-  // show button whenever time is OK even if link is not yet generated,
-  // so user still sees "Join" (it will open details or internal room)
+  // always show button if there is a link or time window is OK
   const showJoinButton = hasLink || canJoinTime;
-  const joinEnabled = hasLink && canJoinTime;
+
+  // allow click whenever canJoinTime is true;
+  // the parent handler decides whether to open Google Meet or details page
+  const joinEnabled = canJoinTime;
 
   const canManage = currentUserRole === 'ADMIN' || isOrganizer;
 
@@ -102,8 +109,8 @@ const MeetingList: React.FC<Props> = ({
     meeting.mode === 'instant'
       ? 'Instant'
       : meeting.mode === 'link-only'
-      ? 'Link only'
-      : 'Scheduled';
+        ? 'Link only'
+        : 'Scheduled';
 
   return (
     <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4 hover:shadow-lg transition-all">
@@ -197,11 +204,10 @@ const MeetingList: React.FC<Props> = ({
         {showJoinButton && (
           <button
             onClick={joinEnabled ? onJoin : undefined}
-            className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-              joinEnabled
+            className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${joinEnabled
                 ? 'bg-green-600 hover:bg-green-700 text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-            }`}
+              }`}
           >
             <Video className="w-4 h-4" />
             {joinEnabled ? 'Join' : 'Not started'}

@@ -20,13 +20,7 @@ import MeetingForm from './MeetingForm';
 import MeetingList from './MeetingList';
 import MeetingCalendar from './MeetingCalendar';
 
-type FilterStatus =
-  | 'all'
-  | 'scheduled'
-  | 'ongoing'
-  | 'completed'
-  | 'live'
-  | 'ended';
+type FilterStatus = 'all' | 'scheduled' | 'ongoing' | 'completed' | 'live' | 'ended';
 
 const MeetingsHome: React.FC = () => {
   const { user } = useAuth();
@@ -41,6 +35,10 @@ const MeetingsHome: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [newMenuOpen, setNewMenuOpen] = useState(false);
+
+  // Popup state
+  const [createdLink, setCreatedLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const safeDate = (value: string | Date | undefined): Date | null => {
     if (!value) return null;
@@ -60,20 +58,18 @@ const MeetingsHome: React.FC = () => {
         userMeetings = data.filter((m: Meeting) => {
           const organizer = m.organizer as unknown as string | { _id: string };
           const isOrganizer =
-            typeof organizer === 'string'
-              ? organizer === uid
-              : organizer?._id === uid;
+            typeof organizer === 'string' ? organizer === uid : organizer?._id === uid;
 
           const inAttendees = Array.isArray(m.attendees)
             ? (m.attendees as (string | { _id: string })[]).some((a) =>
-                typeof a === 'string' ? a === uid : a._id === uid,
-              )
+              typeof a === 'string' ? a === uid : a._id === uid,
+            )
             : false;
 
           const inInvited = Array.isArray(m.invitedUsers)
             ? (m.invitedUsers as (string | { _id: string })[]).some((inv) =>
-                typeof inv === 'string' ? inv === uid : inv._id === uid,
-              )
+              typeof inv === 'string' ? inv === uid : inv._id === uid,
+            )
             : false;
 
           return isOrganizer || inAttendees || inInvited;
@@ -147,13 +143,8 @@ const MeetingsHome: React.FC = () => {
         await fetchMeetings();
       }
     } catch (error: any) {
-      console.error(
-        'Error creating meeting:',
-        error?.response?.data || error,
-      );
-      showToast.error(
-        error?.response?.data?.message || 'Failed to create meeting',
-      );
+      console.error('Error creating meeting:', error?.response?.data || error);
+      showToast.error(error?.response?.data?.message || 'Failed to create meeting');
     }
   };
 
@@ -178,13 +169,8 @@ const MeetingsHome: React.FC = () => {
         await fetchMeetings();
       }
     } catch (error: any) {
-      console.error(
-        'Error updating meeting:',
-        error?.response?.data || error,
-      );
-      showToast.error(
-        error?.response?.data?.message || 'Failed to update meeting',
-      );
+      console.error('Error updating meeting:', error?.response?.data || error);
+      showToast.error(error?.response?.data?.message || 'Failed to update meeting');
     }
   };
 
@@ -202,20 +188,16 @@ const MeetingsHome: React.FC = () => {
     }
   };
 
-  const openJoinLink = (joinLink: string, mode?: string) => {
-    // For instant or link-only meetings, always go to internal WebRTC room
-    if (mode === 'instant' || mode === 'link-only') {
-      const path = joinLink.startsWith(window.location.origin)
-        ? joinLink.replace(window.location.origin, '')
-        : joinLink;
-      navigate(path);
+  const openJoinLink = (joinLink: string) => {
+    if (joinLink.startsWith('https://meet.google.com')) {
+      window.open(joinLink, '_blank', 'noopener,noreferrer');
       return;
     }
-
-    // For scheduled meetings, support both internal and external links
     if (joinLink.startsWith(window.location.origin)) {
       const path = joinLink.replace(window.location.origin, '');
       navigate(path);
+    } else if (joinLink.startsWith('/')) {
+      navigate(joinLink);
     } else {
       window.open(joinLink, '_blank', 'noopener,noreferrer');
     }
@@ -223,8 +205,11 @@ const MeetingsHome: React.FC = () => {
 
   const handleJoinMeeting = async (id: string) => {
     const meeting = meetings.find((m) => m._id === id);
+
     if (meeting?.joinLink) {
-      openJoinLink(meeting.joinLink, meeting.mode);
+      openJoinLink(meeting.joinLink);
+    } else if (meeting?._id) {
+      navigate(`/meetings/${meeting._id}`);
     }
 
     try {
@@ -237,17 +222,28 @@ const MeetingsHome: React.FC = () => {
   };
 
   const handleCalendarSelect = (meeting: Meeting) => {
-    if (meeting._id && meeting.joinLink) {
+    if (meeting._id) {
       handleJoinMeeting(meeting._id);
     }
   };
 
-  const filterButtons: FilterStatus[] = [
-    'all',
-    'scheduled',
-    'ongoing',
-    'completed',
-  ];
+  const filterButtons: FilterStatus[] = ['all', 'scheduled', 'ongoing', 'completed'];
+
+  const handleCopyCreatedLink = async () => {
+    if (!createdLink) return;
+    try {
+      await navigator.clipboard.writeText(createdLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      showToast.error('Unable to copy, please copy manually');
+    }
+  };
+
+  const handleClosePopup = () => {
+    setCreatedLink(null);
+    setCopied(false);
+  };
 
   return (
     <div className="flex-1 px-6 py-6">
@@ -257,65 +253,58 @@ const MeetingsHome: React.FC = () => {
           <CalendarIcon className="w-8 h-8 text-blue-600" />
           Meetings
         </h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
+        <p className="mt-1 text-slate-600 dark:text-slate-400">
           Manage your team meetings and schedules
         </p>
       </div>
 
       {/* View Toggle + New Meeting Button */}
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
           <button
             onClick={() => setViewMode('list')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              viewMode === 'list'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${viewMode === 'list'
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
+              }`}
           >
             List View
           </button>
           <button
             onClick={() => setViewMode('calendar')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              viewMode === 'calendar'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${viewMode === 'calendar'
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
+              }`}
           >
             Calendar View
           </button>
         </div>
 
-        {/* New Meeting menu */}
         {user?.role !== 'EMPLOYEE' && !showForm && (
           <div className="relative">
             <button
               onClick={() => setNewMenuOpen((v) => !v)}
-              className="flex items-center justify-center gap-2 px-6 py-3
-                         bg-gradient-to-r from-blue-600 to-blue-700
-                         hover:from-blue-700 hover:to-blue-800
-                         text-white rounded-lg font-semibold transition-all"
+              className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3 font-semibold text-white transition-all hover:from-blue-700 hover:to-blue-800"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="h-5 w-5" />
               New Meeting
             </button>
 
             {newMenuOpen && (
-              <div className="absolute right-0 mt-2 w-72 rounded-lg border
-                              border-slate-200 dark:border-slate-700
-                              bg-white dark:bg-slate-800 shadow-lg overflow-hidden z-20">
+              <div className="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white text-sm shadow-xl dark:border-slate-700 dark:bg-slate-800 z-20">
                 {/* Start instant meeting */}
                 <button
                   type="button"
                   onClick={async () => {
                     setNewMenuOpen(false);
                     try {
-                      const meeting =
-                        await meetingsService.createInstantMeeting();
+                      const meeting = await meetingsService.createInstantMeeting();
                       showToast.success('Instant meeting started');
                       if (meeting.joinLink) {
-                        openJoinLink(meeting.joinLink, meeting.mode);
+                        openJoinLink(meeting.joinLink);
+                      } else if (meeting._id) {
+                        navigate(`/meetings/${meeting._id}`);
                       }
                       await fetchMeetings();
                     } catch (e) {
@@ -323,10 +312,11 @@ const MeetingsHome: React.FC = () => {
                       showToast.error('Failed to start instant meeting');
                     }
                   }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-sm
-                             hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className="flex w-full items-center gap-3 px-4 py-3 hover:bg-slate-100 dark:hover:bg-slate-700"
                 >
-                  <Zap className="w-4 h-4 text-emerald-500" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-500 dark:bg-emerald-900/30">
+                    <Zap className="h-4 w-4" />
+                  </div>
                   <div className="flex flex-col items-start">
                     <span className="font-medium">Start an instant meeting</span>
                     <span className="text-xs text-slate-500">
@@ -341,18 +331,23 @@ const MeetingsHome: React.FC = () => {
                   onClick={async () => {
                     setNewMenuOpen(false);
                     try {
-                      await meetingsService.createLinkOnlyMeeting();
-                      showToast.success('Meeting link created');
+                      const meeting = await meetingsService.createLinkOnlyMeeting();
+                      if (meeting?.joinLink) {
+                        setCreatedLink(meeting.joinLink);
+                      } else {
+                        showToast.error('No link returned from server');
+                      }
                       await fetchMeetings();
                     } catch (e) {
                       console.error(e);
                       showToast.error('Failed to create meeting link');
                     }
                   }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-sm
-                             hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className="flex w-full items-center gap-3 px-4 py-3 hover:bg-slate-100 dark:hover:bg-slate-700"
                 >
-                  <LinkIcon className="w-4 h-4 text-indigo-500" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-indigo-500 dark:bg-indigo-900/30">
+                    <LinkIcon className="h-4 w-4" />
+                  </div>
                   <div className="flex flex-col items-start">
                     <span className="font-medium">Create a meeting for later</span>
                     <span className="text-xs text-slate-500">
@@ -369,11 +364,11 @@ const MeetingsHome: React.FC = () => {
                     setEditingMeeting(null);
                     setShowForm(true);
                   }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-sm
-                             hover:bg-slate-100 dark:hover:bg-slate-700 border-t
-                             border-slate-200 dark:border-slate-700"
+                  className="flex w-full items-center gap-3 border-t border-slate-200 px-4 py-3 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-700"
                 >
-                  <CalendarIcon className="w-4 h-4 text-blue-500" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-500 dark:bg-blue-900/30">
+                    <CalendarIcon className="h-4 w-4" />
+                  </div>
                   <div className="flex flex-col items-start">
                     <span className="font-medium">Schedule in calendar</span>
                     <span className="text-xs text-slate-500">
@@ -388,30 +383,27 @@ const MeetingsHome: React.FC = () => {
       </div>
 
       {/* Search + Filters Section */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 mb-6">
-        {/* Search Input */}
+      <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
         <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search meetings..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white text-slate-900 dark:bg-slate-700 dark:text-white border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
+            className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-slate-900 outline-none transition-colors focus:border-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
           />
         </div>
 
-        {/* Status Filter Buttons */}
         <div className="flex flex-wrap gap-2">
           {filterButtons.map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                filter === f
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-600'
-              }`}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${filter === f
+                ? 'bg-blue-600 text-white'
+                : 'border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
+                }`}
             >
               {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
@@ -421,12 +413,10 @@ const MeetingsHome: React.FC = () => {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 mb-6">
+        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
           <MeetingForm
             meeting={editingMeeting}
-            onSubmit={
-              editingMeeting ? handleUpdateMeeting : handleCreateMeeting
-            }
+            onSubmit={editingMeeting ? handleUpdateMeeting : handleCreateMeeting}
             onCancel={() => {
               setShowForm(false);
               setEditingMeeting(null);
@@ -436,9 +426,9 @@ const MeetingsHome: React.FC = () => {
       )}
 
       {/* Content Area - List or Calendar */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6">
+      <div className="rounded-lg border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
         {loading ? (
-          <div className="text-center py-8 text-slate-600 dark:text-slate-400">
+          <div className="py-8 text-center text-slate-600 dark:text-slate-400">
             Loading meetings...
           </div>
         ) : filteredMeetings.length > 0 ? (
@@ -449,19 +439,13 @@ const MeetingsHome: React.FC = () => {
                   key={meeting._id}
                   meeting={meeting}
                   currentUserId={user?._id}
-                  currentUserRole={
-                    user?.role as 'ADMIN' | 'MANAGER' | 'EMPLOYEE' | 'INTERN'
-                  }
+                  currentUserRole={user?.role as 'ADMIN' | 'MANAGER' | 'EMPLOYEE' | 'INTERN'}
                   onEdit={() => {
                     setEditingMeeting(meeting);
                     setShowForm(true);
                   }}
-                  onDelete={() =>
-                    meeting._id && handleDeleteMeeting(meeting._id)
-                  }
-                  onJoin={() =>
-                    meeting._id && handleJoinMeeting(meeting._id)
-                  }
+                  onDelete={() => meeting._id && handleDeleteMeeting(meeting._id)}
+                  onJoin={() => meeting._id && handleJoinMeeting(meeting._id)}
                 />
               ))}
             </div>
@@ -472,12 +456,12 @@ const MeetingsHome: React.FC = () => {
             />
           )
         ) : (
-          <div className="text-center py-12">
-            <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-            <p className="text-slate-600 dark:text-slate-400 font-medium">
+          <div className="py-12 text-center">
+            <CalendarIcon className="mx-auto mb-4 h-12 w-12 text-slate-300 dark:text-slate-600" />
+            <p className="font-medium text-slate-600 dark:text-slate-400">
               No meetings found
             </p>
-            <p className="text-slate-500 dark:text-slate-500 text-sm mt-1">
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-500">
               {filter === 'all'
                 ? 'Create a new meeting to get started.'
                 : `No ${filter} meetings right now.`}
@@ -485,6 +469,53 @@ const MeetingsHome: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Popup card for "Create link for later" */}
+      {createdLink && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-2xl shadow-slate-900/20 dark:border-slate-700 dark:bg-slate-900">
+            <div className="mb-4 flex items-start gap-3">
+              <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/40">
+                <LinkIcon className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  Here&apos;s your joining link
+                </h2>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                  Share this link with people you want to meet. You can reuse it later as
+                  well.
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-5 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+              <span className="flex-1 break-all">{createdLink}</span>
+              <button
+                type="button"
+                onClick={handleCopyCreatedLink}
+                className={`rounded-lg px-3 py-1 text-xs font-semibold text-white transition-colors ${copied
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+              >
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span>Tip: You can paste this into calendar invites, chats, or emails.</span>
+              <button
+                type="button"
+                onClick={handleClosePopup}
+                className="rounded-lg bg-slate-100 px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

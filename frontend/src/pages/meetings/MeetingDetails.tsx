@@ -14,6 +14,7 @@ const MeetingDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -24,6 +25,11 @@ const MeetingDetails: React.FC = () => {
       try {
         if (!id) return;
         const data = await meetingsService.getMeetingById(id);
+        if (!data) {
+          showToast.error('Meeting not found');
+          navigate('/meetings');
+          return;
+        }
         setMeeting(data);
       } catch (e) {
         showToast.error('Failed to load meeting');
@@ -35,8 +41,40 @@ const MeetingDetails: React.FC = () => {
     load();
   }, [id, navigate]);
 
+  const openJoinLink = (joinLink: string) => {
+    // Prefer Google Meet URLs
+    if (joinLink.startsWith('https://meet.google.com')) {
+      window.open(joinLink, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // Internal link under same origin
+    if (joinLink.startsWith(window.location.origin)) {
+      const path = joinLink.replace(window.location.origin, '');
+      navigate(path);
+      return;
+    }
+
+    // Relative path
+    if (joinLink.startsWith('/')) {
+      navigate(joinLink);
+      return;
+    }
+
+    // Any other external URL
+    window.open(joinLink, '_blank', 'noopener,noreferrer');
+  };
+
   const handleJoin = async () => {
-    if (!id) return;
+    if (!id || !meeting) return;
+
+    // If there is any joinLink (Google or internal), use it directly
+    if (meeting.joinLink) {
+      openJoinLink(meeting.joinLink);
+      return;
+    }
+
+    // Otherwise, go through backend join + internal VideoRoom
     setJoining(true);
     try {
       const ok = await meetingsService.joinMeeting(id);
@@ -66,7 +104,7 @@ const MeetingDetails: React.FC = () => {
   }
 
   const canJoin =
-    meeting.joinLink ||
+    !!meeting.joinLink ||
     meeting.mode === 'instant' ||
     meeting.status === 'live' ||
     meeting.status === 'ongoing';
@@ -114,6 +152,7 @@ const MeetingDetails: React.FC = () => {
                   {meeting.location}
                 </p>
               )}
+
               {meeting.joinLink && (
                 <p className="mt-2 text-sm break-all">
                   <span className="font-semibold">Join link: </span>
@@ -131,7 +170,7 @@ const MeetingDetails: React.FC = () => {
 
             {canJoin && (
               <button
-                onClick={meeting.joinLink ? () => window.open(meeting.joinLink!, '_blank', 'noopener,noreferrer') : handleJoin}
+                onClick={handleJoin}
                 disabled={joining}
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60"
               >
@@ -143,7 +182,11 @@ const MeetingDetails: React.FC = () => {
         </div>
 
         {showVideo && user?._id && meeting._id && (
-          <VideoRoom meetingId={meeting._id} userId={user._id} />
+          <VideoRoom
+            meetingId={meeting._id}
+            userId={user._id}
+            token={localStorage.getItem('token') || undefined}
+          />
         )}
       </div>
     </div>

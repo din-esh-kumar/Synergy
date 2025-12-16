@@ -10,11 +10,25 @@ interface Props {
   onCancel: () => void;
 }
 
+interface SimpleUser {
+  _id: string;
+  name: string;
+  role?: string;
+}
+
+const toLocalDateTimeValue = (value: string | Date | undefined): string => {
+  if (!value) {
+    return new Date().toISOString().slice(0, 16);
+  }
+  const d = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) {
+    return new Date().toISOString().slice(0, 16);
+  }
+  return d.toISOString().slice(0, 16);
+};
+
 const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
-  const [allUsers, setAllUsers] = useState<any[]>([]);
-  const [mode, setMode] = useState<'scheduled' | 'instant' | 'link-only'>(
-    meeting?.mode || 'scheduled',
-  );
+  const [allUsers, setAllUsers] = useState<SimpleUser[]>([]);
   const [syncToGoogle, setSyncToGoogle] = useState(false); // frontend-only flag
 
   // Normalise attendees from existing meeting -> string[]
@@ -35,42 +49,46 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState<CreateMeetingPayload>(
     meeting
       ? {
-          title: meeting.title,
-          description: meeting.description || '',
-          location: meeting.location || '',
-          joinLink: meeting.joinLink || '',
-          startTime: meeting.startTime,
-          endTime: meeting.endTime,
-          attendees: initialAttendees.length ? initialAttendees : initialInvitedIds,
-          invitedUsers: initialInvitedIds,
-          organizer: meeting.organizer,
-          organiserName: meeting.organiserName,
-          mode: meeting.mode || 'scheduled',
-          googleEventId: meeting.googleEventId,
-        }
+        title: meeting.title,
+        description: meeting.description || '',
+        location: meeting.location || '',
+        joinLink: meeting.joinLink || '',
+        startTime: toLocalDateTimeValue(meeting.startTime),
+        endTime: toLocalDateTimeValue(meeting.endTime),
+        attendees: initialAttendees.length ? initialAttendees : initialInvitedIds,
+        invitedUsers: initialInvitedIds,
+        organizer: meeting.organizer,
+        organiserName: meeting.organiserName,
+        mode: 'scheduled', // force scheduled in the form
+        googleEventId: meeting.googleEventId,
+      }
       : {
-          title: '',
-          description: '',
-          location: '',
-          joinLink: '', // left empty; backend will generate if needed
-          startTime: new Date().toISOString().slice(0, 16),
-          endTime: new Date(Date.now() + 60 * 60 * 1000)
-            .toISOString()
-            .slice(0, 16),
-          attendees: [],
-          invitedUsers: [],
-          organizer: undefined,
-          organiserName: undefined,
-          mode: 'scheduled',
-          googleEventId: undefined,
-        },
+        title: '',
+        description: '',
+        location: '',
+        joinLink: '', // backend will generate when needed
+        startTime: toLocalDateTimeValue(new Date()),
+        endTime: toLocalDateTimeValue(new Date(Date.now() + 60 * 60 * 1000)),
+        attendees: [],
+        invitedUsers: [],
+        organizer: undefined,
+        organiserName: undefined,
+        mode: 'scheduled',
+        googleEventId: undefined,
+      },
   );
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const response = await userService.getAllUsers();
-        setAllUsers(response || []);
+        setAllUsers(
+          (response || []).map((u: any) => ({
+            _id: u._id,
+            name: u.name,
+            role: u.role,
+          })),
+        );
       } catch (error) {
         console.error('Error fetching users:', error);
       }
@@ -108,35 +126,27 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
       return;
     }
 
-    if (mode === 'scheduled') {
-      if (!formData.startTime || !formData.endTime) {
-        alert('Start and End time are required for scheduled meetings');
-        return;
-      }
+    if (!formData.startTime || !formData.endTime) {
+      alert('Start and End time are required');
+      return;
     }
 
     const normalizeIds = (list: any[] | undefined) =>
       (list || [])
-        .map((item: any) =>
-          typeof item === 'string' ? item : item?._id,
-        )
-        .filter(
-          (id: any) => typeof id === 'string' && id.trim().length > 0,
-        );
+        .map((item: any) => (typeof item === 'string' ? item : item?._id))
+        .filter((id: any) => typeof id === 'string' && id.trim().length > 0);
 
     const payload: CreateMeetingPayload = {
       ...formData,
-      mode,
+      mode: 'scheduled',
       attendees: normalizeIds(formData.attendees as any),
       invitedUsers: normalizeIds(formData.invitedUsers as any),
     };
 
-    // frontend-only flag; backend can decide to call Google Calendar if present
     if (syncToGoogle) {
       (payload as any).syncToGoogle = true;
     }
 
-    // For instant/link-only, backend will override times and generate joinLink
     onSubmit(payload);
   };
 
@@ -146,43 +156,6 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Mode selector */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setMode('scheduled')}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
-            mode === 'scheduled'
-              ? 'bg-blue-600 text-white border-blue-600'
-              : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600'
-          }`}
-        >
-          Schedule in calendar
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('instant')}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
-            mode === 'instant'
-              ? 'bg-emerald-600 text-white border-emerald-600'
-              : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600'
-          }`}
-        >
-          Start instant meeting
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('link-only')}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
-            mode === 'link-only'
-              ? 'bg-indigo-600 text-white border-indigo-600'
-              : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600'
-          }`}
-        >
-          Create link for later
-        </button>
-      </div>
-
       {/* Title */}
       <div>
         <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">
@@ -232,48 +205,43 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
         />
       </div>
 
-      {/* Join link – hidden, managed by backend; keep value only for edit */}
-      {/* No input shown so user is never asked to paste a link */}
-
-      {/* Start / End – hidden for link-only, optional for instant */}
-      {mode !== 'link-only' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">
-              Start Time <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="datetime-local"
-              value={formData.startTime}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  startTime: e.target.value,
-                }))
-              }
-              className="w-full px-4 py-2.5 bg-white text-slate-900 dark:bg-slate-700 dark:text-white border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
-              required={mode === 'scheduled'}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">
-              End Time <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="datetime-local"
-              value={formData.endTime}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  endTime: e.target.value,
-                }))
-              }
-              className="w-full px-4 py-2.5 bg-white text-slate-900 dark:bg-slate-700 dark:text-white border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
-              required={mode === 'scheduled'}
-            />
-          </div>
+      {/* Start / End */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">
+            Start Time <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="datetime-local"
+            value={formData.startTime as string}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                startTime: e.target.value,
+              }))
+            }
+            className="w-full px-4 py-2.5 bg-white text-slate-900 dark:bg-slate-700 dark:text-white border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
+            required
+          />
         </div>
-      )}
+        <div>
+          <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">
+            End Time <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="datetime-local"
+            value={formData.endTime as string}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                endTime: e.target.value,
+              }))
+            }
+            className="w-full px-4 py-2.5 bg-white text-slate-900 dark:bg-slate-700 dark:text-white border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
+            required
+          />
+        </div>
+      </div>
 
       {/* Invite attendees */}
       <div>
@@ -294,7 +262,7 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
             .filter((u) => !selectedUsers.includes(u._id))
             .map((user) => (
               <option key={user._id} value={user._id}>
-                {user.name} ({user.role})
+                {user.name} {user.role ? `(${user.role})` : ''}
               </option>
             ))}
         </select>
@@ -325,7 +293,7 @@ const MeetingForm: React.FC<Props> = ({ meeting, onSubmit, onCancel }) => {
         )}
       </div>
 
-      {/* Google Calendar sync toggle (frontend flag) */}
+      {/* Google Calendar sync toggle */}
       <div className="flex items-center gap-2 pt-2">
         <input
           id="syncGoogle"

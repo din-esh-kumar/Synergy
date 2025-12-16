@@ -17,42 +17,58 @@ const createOAuthClient = () =>
   );
 
 // STEP 1: send user to Google
+// This route should be protected by your auth middleware so (req as any).user.id is set
 router.get('/google', (req: Request, res: Response) => {
-  const oAuth2Client = createOAuthClient();
-  const scopes = ['https://www.googleapis.com/auth/calendar'];
+  try {
+    const authUser = (req as any).user;
+    if (!authUser || !authUser.id) {
+      return res.status(401).send('Unauthorized: no authenticated user');
+    }
 
-  const url = oAuth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: scopes,
-    prompt: 'consent',
-  });
+    const oAuth2Client = createOAuthClient();
+    const scopes = ['https://www.googleapis.com/auth/calendar'];
 
-  res.redirect(url);
+    const url = oAuth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: scopes,
+      prompt: 'consent',
+      // pass the app user id through Google's state param
+      state: authUser.id.toString(),
+    });
+
+    res.redirect(url);
+  } catch (err) {
+    console.error('Error starting Google OAuth:', err);
+    res.status(500).send('Failed to start Google authentication');
+  }
 });
 
-// STEP 2: callback – save tokens for organizer user
+// STEP 2: callback – save tokens for the user who initiated OAuth
 router.get('/google/callback', async (req: Request, res: Response) => {
   try {
     const code = req.query.code as string | undefined;
+    const stateUserId = req.query.state as string | undefined; // comes from step 1
 
-    if (!code) {
-      return res.status(400).send('Missing code');
+    if (!code || !stateUserId) {
+      return res.status(400).send('Missing code or state');
     }
-
-    // Organizer user: karthikjakkuva4@gmail.com
-    const userId = '69267ea6ca4a14a1f548ce2c';
 
     const oAuth2Client = createOAuthClient();
     const { tokens } = await oAuth2Client.getToken(code);
     oAuth2Client.setCredentials(tokens);
 
     const updatedUser = await User.findByIdAndUpdate(
-      userId,
+      stateUserId,
       { googleTokens: tokens },
       { new: true },
     );
 
-    console.log('Google token update result:', updatedUser?._id);
+    console.log(
+      'Google token update result:',
+      stateUserId,
+      'hasTokens=',
+      !!updatedUser?.googleTokens,
+    );
 
     if (!updatedUser) {
       return res.status(404).send('User not found for given userId');

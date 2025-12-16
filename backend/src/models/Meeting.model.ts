@@ -1,4 +1,4 @@
-// src/config/Meeting.model.ts
+// src/models/Meeting.model.ts
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export type MeetingMode = 'scheduled' | 'instant' | 'link-only';
